@@ -1,0 +1,470 @@
+{
+  "analyzedFiles": [
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250117-ABN AMRO-Maand tariferingnota van Bumos-eu16_21.pdf",
+      "data": {
+        "invoice_date": "20250117",
+        "company_name": "ABN AMRO",
+        "description": "Maand tariferingnota van Bumos",
+        "invoice_amount": "16,21",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250117-ABN AMRO-Maand tariferingnota van Bumos-eu16_21.pdf"
+      },
+      "timestamp": "2025-04-26T13:53:15.705Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250117-ABN AMRO-Maand tariferingnota van Bumos-eu16_21.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250117-ABN AMRO-Maand tariferingnota van Bumos-eu16_21.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250117-ABN AMRO-Maand tariferingnota van Bumos-eu16_21.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250217-ABN AMRO-Nota Producten en Diensten-eu14_89.pdf",
+      "data": {
+        "invoice_date": "20250217",
+        "company_name": "ABN AMRO",
+        "description": "Nota Producten en Diensten",
+        "invoice_amount": "14,89",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250217-ABN AMRO-Nota Producten en Diensten-eu14_89.pdf"
+      },
+      "timestamp": "2025-04-26T13:53:22.611Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250217-ABN AMRO-Nota Producten en Diensten-eu14_89.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250217-ABN AMRO-Nota Producten en Diensten-eu14_89.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250217-ABN AMRO-Nota Producten en Diensten-eu14_89.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250110-DePlaatsmaker-Inschrijfgeld de plaatsmaker-eu12_00.pdf",
+      "data": {
+        "invoice_date": "20250110",
+        "company_name": "DePlaatsmaker",
+        "description": "Inschrijfgeld de plaatsmaker",
+        "invoice_amount": "12,00",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250110-DePlaatsmaker-Inschrijfgeld de plaatsmaker-eu12_00.pdf"
+      },
+      "timestamp": "2025-04-26T13:53:31.718Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250110-DePlaatsmaker-Inschrijfgeld de plaatsmaker-eu12_00.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250110-DePlaatsmaker-Inschrijfgeld de plaatsmaker-eu12_00.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250110-DePlaatsmaker-Inschrijfgeld de plaatsmaker-eu12_00.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/20250101-DigitalOcean LLC-December 2024 charges-eu49_60.pdf",
+      "data": {
+        "invoice_date": "20250101",
+        "company_name": "DigitalOcean LLC",
+        "description": "December 2024 charges",
+        "invoice_amount": "49,60",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250101-DigitalOcean LLC-December 2024 charges-eu49_60.pdf"
+      },
+      "timestamp": "2025-04-26T13:53:09.706Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/20250101-DigitalOcean LLC-December 2024 charges-eu49_60.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/20250101-DigitalOcean LLC-December 2024 charges-eu49_60.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/20250101-DigitalOcean LLC-December 2024 charges-eu49_60.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/siteground/20250120-SiteGround Spain S.L.-GoGeek Hosting Renewal-eu839_76.pdf",
+      "data": {
+        "invoice_date": "20250120",
+        "company_name": "SiteGround Spain S.L.",
+        "description": "GoGeek Hosting Renewal",
+        "invoice_amount": "839.76",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250120-SiteGround Spain S.L.-GoGeek Hosting Renewal-eu839_76.pdf"
+      },
+      "timestamp": "2025-04-26T14:01:03.469Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/siteground/20250120-SiteGround Spain S.L.-GoGeek Hosting Renewal-eu839_76.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/siteground/20250120-SiteGround Spain S.L.-GoGeek Hosting Renewal-eu839_76.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/siteground/20250120-SiteGround Spain S.L.-GoGeek Hosting Renewal-eu839_76.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250317-ABN AMRO-Nota Producten en Diensten-eu12_13.pdf",
+      "data": {
+        "invoice_date": "20250317",
+        "company_name": "ABN AMRO",
+        "description": "Nota Producten en Diensten",
+        "invoice_amount": "12,13",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250317-ABN AMRO-Nota Producten en Diensten-eu12_13.pdf"
+      },
+      "timestamp": "2025-04-26T14:01:14.608Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250317-ABN AMRO-Nota Producten en Diensten-eu12_13.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250317-ABN AMRO-Nota Producten en Diensten-eu12_13.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250317-ABN AMRO-Nota Producten en Diensten-eu12_13.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250304-NLdigital-NLdigital Voorwaarden Nederlands-eu135_00.pdf",
+      "data": {
+        "invoice_date": "20250304",
+        "company_name": "NLdigital",
+        "description": "NLdigital Voorwaarden Nederlands",
+        "invoice_amount": "135,00",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250304-NLdigital-NLdigital Voorwaarden Nederlands-eu135_00.pdf"
+      },
+      "timestamp": "2025-04-26T14:01:08.540Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250304-NLdigital-NLdigital Voorwaarden Nederlands-eu135_00.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250304-NLdigital-NLdigital Voorwaarden Nederlands-eu135_00.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250304-NLdigital-NLdigital Voorwaarden Nederlands-eu135_00.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250113-Reeleezee B.V.-Reeleezee Slim Boekhouden+-eu40_64.pdf",
+      "data": {
+        "invoice_date": "20250113",
+        "company_name": "Reeleezee B.V.",
+        "description": "Reeleezee Slim Boekhouden+",
+        "invoice_amount": "40,64",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250113-Reeleezee B.V.-Reeleezee Slim Boekhouden+-eu40_64.pdf"
+      },
+      "timestamp": "2025-04-27T08:16:45.999Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250113-Reeleezee B.V.-Reeleezee Slim Boekhouden+-eu40_64.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250113-Reeleezee B.V.-Reeleezee Slim Boekhouden+-eu40_64.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250113-Reeleezee B.V.-Reeleezee Slim Boekhouden+-eu40_64.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250213-Reeleezee B.V.-nota voor abonnement-eu40_64.pdf",
+      "data": {
+        "invoice_date": "20250213",
+        "company_name": "Reeleezee B.V.",
+        "description": "nota voor abonnement",
+        "invoice_amount": "40,64",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250213-Reeleezee B.V.-nota voor abonnement-eu40_64.pdf"
+      },
+      "timestamp": "2025-04-27T08:17:00.901Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250213-Reeleezee B.V.-nota voor abonnement-eu40_64.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250213-Reeleezee B.V.-nota voor abonnement-eu40_64.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250213-Reeleezee B.V.-nota voor abonnement-eu40_64.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250111-BTC Direct Shop-Cryptocurrency wallet invoice-eu344_90.png",
+      "data": {
+        "invoice_date": "20250111",
+        "company_name": "BTC Direct Shop",
+        "description": "Cryptocurrency wallet invoice",
+        "invoice_amount": "344,90",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250111-BTC Direct Shop-Cryptocurrency wallet invoice-eu344_90.png"
+      },
+      "timestamp": "2025-04-27T08:23:01.809Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250111-BTC Direct Shop-Cryptocurrency wallet invoice-eu344_90.pdf",
+      "type": "image",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250111-BTC Direct Shop-Cryptocurrency wallet invoice-eu344_90.png",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250111-BTC Direct Shop-Cryptocurrency wallet invoice-eu344_90.png"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250314-NS Reizigers-Factuur NS-Business Card-eu25_32.pdf",
+      "data": {
+        "invoice_date": "20250314",
+        "company_name": "NS Reizigers",
+        "description": "Factuur NS-Business Card",
+        "invoice_amount": "25,32",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250314-NS Reizigers-Factuur NS-Business Card-eu25_32.pdf"
+      },
+      "timestamp": "2025-04-27T08:24:31.127Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250314-NS Reizigers-Factuur NS-Business Card-eu25_32.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250314-NS Reizigers-Factuur NS-Business Card-eu25_32.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250314-NS Reizigers-Factuur NS-Business Card-eu25_32.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250114-NS Reizigers-Factuur NS-Business Card-eu21_69.pdf",
+      "data": {
+        "invoice_date": "20250114",
+        "company_name": "NS Reizigers",
+        "description": "Factuur NS-Business Card",
+        "invoice_amount": "21,69",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250114-NS Reizigers-Factuur NS-Business Card-eu21_69.pdf"
+      },
+      "timestamp": "2025-04-27T08:24:35.130Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250114-NS Reizigers-Factuur NS-Business Card-eu21_69.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250114-NS Reizigers-Factuur NS-Business Card-eu21_69.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250114-NS Reizigers-Factuur NS-Business Card-eu21_69.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250214-NS Reizigers-Factuur NS-Business Card-eu64_27.pdf",
+      "data": {
+        "invoice_date": "20250214",
+        "company_name": "NS Reizigers",
+        "description": "Factuur NS-Business Card",
+        "invoice_amount": "64,27",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250214-NS Reizigers-Factuur NS-Business Card-eu64_27.pdf"
+      },
+      "timestamp": "2025-04-27T08:24:40.730Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250214-NS Reizigers-Factuur NS-Business Card-eu64_27.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250214-NS Reizigers-Factuur NS-Business Card-eu64_27.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250214-NS Reizigers-Factuur NS-Business Card-eu64_27.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250201-Dropbox International Unlimited Company-Betalingsfactuur - Dropbox-eu99_07.pdf",
+      "data": {
+        "invoice_date": "20250201",
+        "company_name": "Dropbox International Unlimited Company",
+        "description": "Betalingsfactuur - Dropbox",
+        "invoice_amount": "99,07",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250201-Dropbox International Unlimited Company-Betalingsfactuur - Dropbox-eu99_07.pdf"
+      },
+      "timestamp": "2025-04-27T11:09:31.240Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250201-Dropbox International Unlimited Company-Betalingsfactuur - Dropbox-eu99_07.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250201-Dropbox International Unlimited Company-Betalingsfactuur - Dropbox-eu99_07.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250201-Dropbox International Unlimited Company-Betalingsfactuur - Dropbox-eu99_07.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250331-Orbit Electronic-Invoice from Bumos PDF-eu16_49.pdf",
+      "data": {
+        "invoice_date": "20250331",
+        "company_name": "Orbit Electronic",
+        "description": "Invoice from Bumos PDF",
+        "invoice_amount": "16.49",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250331-Orbit Electronic-Invoice from Bumos PDF-eu16_49.pdf"
+      },
+      "timestamp": "2025-04-27T11:13:41.062Z",
+      "status": "renamed",
+      "newPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250331-Orbit Electronic-Invoice from Bumos PDF-eu16_49.pdf",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250331-Orbit Electronic-Invoice from Bumos PDF-eu16_49.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf bumos/20250331-Orbit Electronic-Invoice from Bumos PDF-eu16_49.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0024.pdf",
+      "data": {
+        "invoice_date": "20250316",
+        "company_name": "OpenAI, LLC",
+        "description": "ChatGPT Plus Subscription",
+        "invoice_amount": "20.00",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "Invoice-D8E15577-0024.pdf"
+      },
+      "timestamp": "2025-04-28T08:40:54.142Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0024.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0024.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0023.pdf",
+      "data": {
+        "invoice_date": "20250216",
+        "company_name": "OpenAI, LLC",
+        "description": "ChatGPT Plus Subscription",
+        "invoice_amount": "20.00",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "Invoice-D8E15577-0023.pdf"
+      },
+      "timestamp": "2025-04-28T08:40:58.819Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0023.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0023.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250125-Apple-iCloud+ 200 GB storage-eu2_47.pdf",
+      "data": {
+        "invoice_date": "20250125",
+        "company_name": "Apple",
+        "description": "iCloud+ 200 GB storage",
+        "invoice_amount": "2,47",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250125-Apple-iCloud+ 200 GB storage-eu2_47.pdf"
+      },
+      "timestamp": "2025-04-28T08:41:04.679Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250125-Apple-iCloud+ 200 GB storage-eu2_47.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250125-Apple-iCloud+ 200 GB storage-eu2_47.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250324-Apple-iCloud+ 200 GB storage-eu2_47.pdf",
+      "data": {
+        "invoice_date": "20250325",
+        "company_name": "Apple Distribution International Ltd.",
+        "description": "iCloud 200 GB storage",
+        "invoice_amount": "2,47",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250324-Apple-iCloud+ 200 GB storage-eu2_47.pdf"
+      },
+      "timestamp": "2025-04-28T08:41:11.247Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250324-Apple-iCloud+ 200 GB storage-eu2_47.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250324-Apple-iCloud+ 200 GB storage-eu2_47.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250225-Apple-iCloud+ 200 GB storage-eu2_47.pdf",
+      "data": {
+        "invoice_date": "20250225",
+        "company_name": "Apple",
+        "description": "iCloud+ 200 GB storage",
+        "invoice_amount": "2,47",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "20250225-Apple-iCloud+ 200 GB storage-eu2_47.pdf"
+      },
+      "timestamp": "2025-04-28T08:41:18.513Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250225-Apple-iCloud+ 200 GB storage-eu2_47.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/apple/20250225-Apple-iCloud+ 200 GB storage-eu2_47.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/bol-3913118526041.pdf",
+      "data": {
+        "invoice_date": "20250408",
+        "company_name": "Phlame Store | T. Sahiel B.V.",
+        "description": "Invoice from private bol",
+        "invoice_amount": "11.56",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "bol-3913118526041.pdf"
+      },
+      "timestamp": "2025-04-28T08:41:22.976Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/bol-3913118526041.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/bol-3913118526041.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/DigitalOcean Invoice 2025 Feb (2360006-506655129).pdf",
+      "data": {
+        "invoice_date": "20250301",
+        "company_name": "DigitalOcean LLC",
+        "description": "Final invoice February 2025",
+        "invoice_amount": "49.60",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "DigitalOcean Invoice 2025 Feb (2360006-506655129).pdf"
+      },
+      "timestamp": "2025-04-28T08:41:28.574Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/DigitalOcean Invoice 2025 Feb (2360006-506655129).pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/DigitalOcean Invoice 2025 Feb (2360006-506655129).pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/DigitalOcean Invoice 2025 Mar (2360006-509666582).pdf",
+      "data": {
+        "invoice_date": "20250401",
+        "company_name": "DigitalOcean LLC",
+        "description": "Invoice for March 2025",
+        "invoice_amount": "52.22",
+        "extraction_status": "success",
+        "confidence": "high",
+        "invoice_currency": "EUR",
+        "original_filename": "DigitalOcean Invoice 2025 Mar (2360006-509666582).pdf"
+      },
+      "timestamp": "2025-04-28T08:41:33.670Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/DigitalOcean Invoice 2025 Mar (2360006-509666582).pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/digital ocean/DigitalOcean Invoice 2025 Mar (2360006-509666582).pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0025.pdf",
+      "data": {
+        "invoice_date": "20250416",
+        "company_name": "OpenAI, LLC",
+        "description": "ChatGPT Plus Subscription",
+        "invoice_amount": "20.00",
+        "invoice_currency": "USD",
+        "extraction_status": "success",
+        "confidence": "high",
+        "original_filename": "Invoice-D8E15577-0025.pdf"
+      },
+      "timestamp": "2025-04-28T09:26:59.283Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0025.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0025.pdf"
+    },
+    {
+      "originalPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0022.pdf",
+      "data": {
+        "invoice_date": "20250116",
+        "company_name": "OpenAI, LLC",
+        "description": "ChatGPT Plus Subscription",
+        "invoice_amount": "20.00",
+        "invoice_currency": "USD",
+        "extraction_status": "success",
+        "confidence": "high",
+        "original_filename": "Invoice-D8E15577-0022.pdf"
+      },
+      "timestamp": "2025-04-28T09:28:34.109Z",
+      "status": "analyzed",
+      "type": "pdf",
+      "relativePath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0022.pdf",
+      "currentPath": "/storage/Dropbox/00administratie/2025kwartaalaangifteQ1/facturen/vanaf prive/openai/Invoice-D8E15577-0022.pdf"
+    }
+  ],
+  "lastRun": "2025-04-26T13:54:41.695Z"
+}

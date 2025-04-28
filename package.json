@@ -1,0 +1,19 @@
+{
+  "name": "invoice-renamer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/gui/server.ts",
+    "dev": "cross-env NODE_ENV=development bun --watch src/gui/server.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "openai": "^4.96.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "bun-types": "latest",
+    "cross-env": "^7.0.3",
+    "typescript": "^5.4.2"
+  }
+}

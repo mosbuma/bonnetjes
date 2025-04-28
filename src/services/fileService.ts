@@ -1,0 +1,68 @@
+import { FileInfo } from '../utils/types.js';
+import { Logger } from '../utils/logger.js';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+
+export class FileService {
+  private logger: Logger;
+  private readonly SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
+
+  constructor(logger: Logger) {
+    this.logger = logger;
+  }
+
+  async findFiles(folders: string[]): Promise<FileInfo[]> {
+    const files: FileInfo[] = [];
+
+    for (const folder of folders) {
+      await this.scanFolder(folder, files);
+    }
+
+    return files;
+  }
+
+  private async scanFolder(folder: string, files: FileInfo[]): Promise<void> {
+    try {
+      const entries = await fs.readdir(folder, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(folder, entry.name);
+
+        if (entry.isDirectory()) {
+          await this.scanFolder(fullPath, files);
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (this.SUPPORTED_EXTENSIONS.includes(ext)) {
+            files.push({
+              path: fullPath,
+              type: ext === '.pdf' ? 'pdf' : 'image',
+              relativePath: path.relative(process.cwd(), fullPath),
+            });
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error scanning folder ${folder}: ${error}`);
+    }
+  }
+
+  async createOutputDirectory(): Promise<void> {
+    const outputDir = path.join(process.cwd(), 'output');
+    try {
+      await fs.mkdir(outputDir, { recursive: true });
+    } catch (error) {
+      this.logger.error(`Error creating output directory: ${error}`);
+      throw error;
+    }
+  }
+
+  async moveFile(sourcePath: string, targetPath: string): Promise<void> {
+    try {
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.rename(sourcePath, targetPath);
+    } catch (error) {
+      this.logger.error(`Error moving file ${sourcePath} to ${targetPath}: ${error}`);
+      throw error;
+    }
+  }
+} 
