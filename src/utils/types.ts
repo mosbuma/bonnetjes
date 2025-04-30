@@ -6,7 +6,6 @@ export interface InvoiceData {
   invoice_currency: string;
   extraction_status: 'success' | 'partial' | 'failed';
   confidence: 'low' | 'medium' | 'high';
-  original_filename: string;
 }
 
 // export interface CliOptions {
@@ -15,7 +14,13 @@ export interface InvoiceData {
 // }
 
 export interface FileInfo {
-  path: string;
+  id: string; // uuidv4
+  originalPath: string;      // Original absolute path
+  currentPath: string;       // Current absolute path in filesystem
+  data?: InvoiceData;       // Invoice data after analysis
+  timestamp: string;        // When the file was first seen
+  status: 'new' | 'analyzed' | 'renamed';
+  error?: string;
   type: 'pdf' | 'image';
 }
 
@@ -25,18 +30,7 @@ export interface RenamePlan {
   data: InvoiceData;
 }
 
-export interface AnalyzedFile {
-  originalPath: string;
-  currentPath: string;
-  proposedPath?: string;
-  data: InvoiceData;
-  timestamp: string;
-  status: 'analyzed' | 'renamed';
-  error?: string;
-  type: 'pdf' | 'image';
-}
-
 export interface State {
-  analyzedFiles: AnalyzedFile[];
+  knownFiles: FileInfo[];
   lastRun: string;
-} e
+}

@@ -63,9 +63,10 @@ export class PdfService {
         await fs.unlink(imagePath);
       }
       const tempDir = path.dirname(imagePaths[0]);
+      console.debug(`Removing temp directory: ${tempDir} for path: ${path.dirname(imagePaths[0])}`);
       await fs.rmdir(tempDir);
     } catch (error) {
-      this.logger.error(`Error cleaning up temporary images: ${error}`);
+      // this.logger.error(`Error cleaning up temporary images: ${error}`);
     }
   }
 } 

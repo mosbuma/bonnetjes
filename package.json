@@ -7,13 +7,21 @@
     "dev": "cross-env NODE_ENV=development bun --watch src/gui/server.ts"
   },
   "dependencies": {
+    "@types/express": "^5.0.1",
+    "@types/open": "^6.1.0",
     "dotenv": "^16.4.5",
-    "openai": "^4.96.0"
+    "express": "^5.1.0",
+    "openai": "^4.96.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.2",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
     "bun-types": "latest",
     "cross-env": "^7.0.3",
+    "eslint": "^9.25.1",
+    "espree": "^10.3.0",
     "typescript": "^5.4.2"
   }
 }

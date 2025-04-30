@@ -1,8 +1,8 @@
 import { Logger } from '../utils/logger.js';
-import { State, AnalyzedFile, InvoiceData } from '../utils/types.js';
+import { State, FileInfo, InvoiceData } from '../utils/types.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-
+import { v4 as uuidv4 } from 'uuid';
 export class StateService {
   private logger: Logger;
   private statePath: string;
@@ -12,7 +12,7 @@ export class StateService {
     this.logger = logger;
     this.statePath = path.join(process.cwd(), 'state.json');
     this.state = {
-      analyzedFiles: [],
+      knownFiles: [],
       lastRun: new Date().toISOString(),
     };
   }
@@ -21,86 +21,19 @@ export class StateService {
     try {
       const data = await fs.readFile(this.statePath, 'utf-8');
       this.state = JSON.parse(data);
-      
-      // Migrate existing records
-      let hasChanges = false;
-      this.state.analyzedFiles = this.state.analyzedFiles.map(file => {
-        const changes: Partial<AnalyzedFile> = {};
-        
-        // Add missing invoice_currency
-        if (!file.data.invoice_currency) {
-          changes.data = {
-            ...file.data,
-            invoice_currency: 'EUR'
-          };
-          hasChanges = true;
-        }
 
-        // Add missing type field
-        if (!file.type) {
-          changes.type = file.originalPath.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image';
-          hasChanges = true;
-        }
-
-        // Add missing extraction_status
-        if (!file.data.extraction_status) {
-          changes.data = {
-            ...file.data,
-            extraction_status: 'success'
-          };
-          hasChanges = true;
-        }
-
-        // Add missing confidence
-        if (!file.data.confidence) {
-          changes.data = {
-            ...file.data,
-            confidence: 'high'
-          };
-          hasChanges = true;
-        }
-
-        // Add missing original_filename
-        if (!file.data.original_filename) {
-          changes.data = {
-            ...file.data,
-            original_filename: path.basename(file.originalPath)
-          };
-          hasChanges = true;
-        }
-
-        // Add missing currentPath
-        if (!file.currentPath) {
-          changes.currentPath = file.originalPath;
-          hasChanges = true;
-        }
-
-        if (hasChanges) {
-          return {
-            ...file,
-            ...changes,
-            data: changes.data || file.data
-          };
-        }
-        return file;
-      });
-
-      if (hasChanges) {
-        await this.saveState();
-        this.logger.info('Migrated existing records to include all required fields');
-      }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         this.logger.info('No state file found, creating new state file');
         this.state = {
-          analyzedFiles: [],
+          knownFiles: [],
           lastRun: new Date().toISOString(),
         };
         await this.saveState();
       } else {
         this.logger.warn(`Error reading state: ${error}`);
         this.state = {
-          analyzedFiles: [],
+          knownFiles: [],
           lastRun: new Date().toISOString(),
         };
       }
@@ -117,16 +50,18 @@ export class StateService {
     }
   }
 
-  resetState(): void {
+  async resetState(): Promise<void> {
     this.state = {
-      analyzedFiles: [],
+      knownFiles: [],
       lastRun: new Date().toISOString()
     };
     this.logger.info('State reset to empty');
+
+    await this.saveState();
   }
 
   async cleanupNonExistentFiles(): Promise<void> {
-    const files = this.state.analyzedFiles;
+    const files = this.state.knownFiles;
     const cleanedFiles = [];
     
     for (const file of files) {
@@ -137,63 +72,71 @@ export class StateService {
       } catch (error) {
         // If file doesn't exist, log it and skip it
         this.logger.warn(`File no longer exists, removing from state: ${file.currentPath}`);
+      } finally {
+        await this.saveState();
       }
     }
     
     // Update state with only existing files
-    this.state.analyzedFiles = cleanedFiles;
+    this.state.knownFiles = cleanedFiles;
     await this.saveState();
   }
 
-  isFileAnalyzed(filePath: string): boolean {
-    return this.state.analyzedFiles.some(file => file.currentPath === filePath);
+  isFileKnown(currentPath: string): boolean {
+    return this.state.knownFiles.some(file => file.currentPath === currentPath);
   }
 
-  getAnalyzedFile(filePath: string): AnalyzedFile | undefined {
-    return this.state.analyzedFiles.find(file => file.currentPath === filePath);
+  getFileByCurrentPath(currentPath: string): FileInfo | undefined {
+    return this.state.knownFiles.find(file => file.currentPath === currentPath);
   }
 
-  addAnalyzedFile(file: AnalyzedFile): void {
-    // Remove any existing entry for this file
-    this.state.analyzedFiles = this.state.analyzedFiles.filter(
-      f => f.currentPath !== file.currentPath
-    );
+  getFileById(id: string): FileInfo | undefined {
+    return this.state.knownFiles.find(file => file.id === id);
+  }
+
+  async createFileInfo(file: FileInfo): Promise<void> {
+    if(this.isFileKnown(file.currentPath)) {
+      this.logger.debug(`File already known: ${file.currentPath}`);
+      throw new Error(`File already known: ${file.currentPath}`);
+    }
     
     // Add the new entry
-    this.state.analyzedFiles.push(file);
-    this.logger.debug(`Added analyzed file: ${file.currentPath}`);
+    this.state.knownFiles.push(file);
+    this.logger.debug(`Added file: ${file.currentPath}`);
+    
+    await this.saveState();
   }
 
-  updateFileStatus(filePath: string, status: 'analyzed' | 'renamed', newPath?: string): void {
-    const file = this.getAnalyzedFile(filePath);
-    if (file) {
-      file.status = status;
-      if (newPath) {
-        file.currentPath = newPath;
-      }
-      this.logger.debug(`Updated file status: ${filePath} -> ${status}`);
-    }
-  }
-
-  getAnalyzedFiles(): AnalyzedFile[] {
-    return this.state.analyzedFiles;
+  getKnownFiles(): FileInfo[] {
+    return this.state.knownFiles;
   }
 
   getLastRun(): string {
     return this.state.lastRun;
   }
 
-  hasCompleteData(data: InvoiceData): boolean {
-    return (
-      data.invoice_date !== '' &&
-      data.company_name !== '' &&
-      data.description !== '' &&
-      data.invoice_amount !== ''
-    );
-  }
+  hasCompleteData(fileInfo: FileInfo): boolean {
+    const missingData = [];
+    
 
-  isFileRenamedAndMoved(filePath: string): boolean {
-    const file = this.getAnalyzedFile(filePath);
-    return file?.status === 'renamed' && file?.currentPath !== file?.originalPath;
+    if(!fileInfo.data || fileInfo.data.invoice_date === '') {
+      missingData.push("invoice_date");
+    }
+
+    if(!fileInfo.data || fileInfo.data.company_name === '') {
+      missingData.push("company_name");
+    }
+
+    if(!fileInfo.data || fileInfo.data.description === '') {
+      missingData.push("description");
+    }
+
+    if(!fileInfo.data || fileInfo.data.invoice_amount === '') {
+      missingData.push("invoice_amount");
+    }
+
+    console.log(`${fileInfo.currentPath} is missing data: ${missingData.join(', ')}`);
+
+    return missingData.length === 0;
   }
 } 

@@ -3,6 +3,7 @@ import { Logger } from '../utils/logger.js';
 import { promises as fs } from 'node:fs';
 import { env } from 'node:process';
 import OpenAI from 'openai';
+import path from 'path';
 
 export class LlmService {
   private logger: Logger;
@@ -92,7 +93,7 @@ Based on the provided images, extract and return the following fields in JSON fo
 }
 
 Notes:
-- The original filename was ${filePath}, Set this in the original_filename field and keep this in mind while making the description.
+- The original filename was ${path.basename(filePath)}, Keep this in mind while making the description.
 - Dates must be formatted as YYYYMMDD (e.g., 20240426).
 - The images that you receive all belong to the same invoice.
 - If any field is missing, leave it blank but still include it in the JSON.
@@ -188,10 +189,9 @@ Notes:
           invoice_currency: item.invoice_currency || 'EUR',
           extraction_status: item.extraction_status || (missingFields.length === 0 ? 'success' : 'partial'),
           confidence: item.confidence || 'low',
-          original_filename: '',  // This will be set by the caller
         };
 
-        this.logger.debug(`Parsed invoice data: ${JSON.stringify(result, null, 2)}`);
+        // this.logger.debug(`Parsed invoice data: ${JSON.stringify(result, null, 2)}`);
         return result;
       });
     } catch (error) {

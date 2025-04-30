@@ -2,15 +2,16 @@ import express, { Request, Response, RequestHandler } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { promises as fs } from 'fs';
-import open from 'open';
 import { StateService } from '../services/stateService.js';
 import { Logger } from '../utils/logger.js';
 import { InvoiceData, FileInfo } from '../utils/types.js';
 import { FileService } from '../services/fileService.js';
 import { LlmService } from '../services/llmService.js';
 import { PdfService } from '../services/pdfService.js';
-import { processFile, updateFileState } from './server-tools.js';
+import { generateFileName } from './public/generic-tools.js';
+import { processFile } from './server-tools.js';
 import path from 'path';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -32,9 +33,9 @@ const llmService = new LlmService(logger);
 await stateService.loadState();
 
 // API Routes
-app.get('/api/records', async (_req: Request, res: Response) => {
+app.get('/api/records', async (_req: Request<{}, {}, {}, { }>, res: Response) => {
   try {
-    const files = stateService.getAnalyzedFiles();
+    const files = stateService.getKnownFiles();
     logger.debug(`Returning ${files.length} records`);
     res.json(files);
   } catch (error) {
@@ -46,8 +47,7 @@ app.get('/api/records', async (_req: Request, res: Response) => {
 // Update the scan endpoint
 app.post('/api/scan', (async (req: Request<{}, {}, { }>, res: Response) => {
     try {
-        const { test } = req.body;
-        logger.debug(`Starting scan process (test: ${test})`);
+        logger.debug('Starting scan process');
         
         await stateService.cleanupNonExistentFiles();
         logger.debug('Cleaned up non-existent files');
@@ -60,85 +60,34 @@ app.post('/api/scan', (async (req: Request<{}, {}, { }>, res: Response) => {
         }
 
         const files = await fileService.findFiles(folders);
-        logger.debug(`Found ${files.length} files to process: ${files.map(f => `${f.path} (${f.type})`).join(', ')}`);
-
-        // const renamePlans: { originalPath: string; newPath: string; data: InvoiceData }[] = [];
+        logger.debug(`Found ${files.length} files to process`);
+        // logger.debug(`Found ${files.length} files to process: ${files.map(f => `${f.currentPath} (${f.type})`).join(', ')}`);
 
         for (const file of files) {
-            logger.debug(`Processing file: ${file.path} (${file.type})`);
-            
-            if (stateService.isFileAnalyzed(file.path)) {
-                const analyzedFile = stateService.getAnalyzedFile(file.path);
-                logger.debug(`File already analyzed: ${file.path} (status: ${analyzedFile?.status}, hasCompleteData: ${analyzedFile ? stateService.hasCompleteData(analyzedFile.data) : false})`);
-                
-                if (analyzedFile && stateService.hasCompleteData(analyzedFile.data)) {
-                    logger.info(`File already analyzed with complete data: ${file.path}`);
-                    // const newPath = analyzedFile.proposedPath;
-                    // if (newPath) {
-                    //     renamePlans.push({
-                    //         originalPath: file.path,
-                    //         newPath: newPath,
-                    //         data: analyzedFile.data,
-                    //     });
-                    //     logger.debug(`Added to rename plans: ${file.path} -> ${newPath}`);
-                    // }
+            const fileInfo = stateService.getFileByCurrentPath(file.currentPath);
+            if (fileInfo !== undefined) {
+                const filename = file.currentPath.split('/').pop();
+                if (fileInfo?.status === 'new') {
+                  logger.info(`Not analyzed: ${filename}`);
+                } else if (!fileInfo?.data || !stateService.hasCompleteData(fileInfo)) {
+                  logger.info(`Incomplete data: ${filename} - ${JSON.stringify(fileInfo?.data, null, 2)}`);
                 } else {
-                    logger.info(`File analyzed but missing data: ${file.path}`);
-                }
+                  logger.info(`Complete data: ${filename}`);
+                } 
+                
                 continue;
             }
 
-            logger.info(`Processing ${file.path}`);
             try {
-                const invoiceData = await processFile(file, stateService, pdfService, llmService);
-                logger.debug(`Processed file: ${file.path} (hasData: ${!!invoiceData}, date: ${invoiceData?.invoice_date}, company: ${invoiceData?.company_name}, status: ${invoiceData?.extraction_status}, confidence: ${invoiceData?.confidence})`);
-                
-                if (invoiceData) {
-                    await updateFileState(file.path, invoiceData, stateService);
-                    logger.debug(`Updated file state: ${file.path}`);
-
-                    // if (stateService.hasCompleteData(invoiceData)) {
-                    //     const newPath = generateFileName(invoiceData, file.path);
-                    //     renamePlans.push({
-                    //         originalPath: file.path,
-                    //         newPath: newPath,
-                    //         data: invoiceData,
-                    //     });
-                    //     logger.debug(`Added to rename plans: ${file.path} -> ${newPath}`);
-                    // } else {
-                    //     logger.warn(`Incomplete data for ${file.path}, skipping rename`);
-                    // }
-                }
+              logger.info(`Adding ${file.currentPath}`);
+              await stateService.createFileInfo(file);
             } catch (error) {
                 console.log(error);
-                logger.error(`Error processing file ${file.path}: ${error}`);
+                logger.error(`Error processing file ${file.currentPath}: ${error}`);
                 throw error;
             }
         }
 
-        // for (const plan of renamePlans) {
-        //     try {
-        //         logger.debug(`Attempting rename: ${plan.originalPath} -> ${plan.newPath}`);
-        //         await fs.rename(plan.originalPath, plan.newPath);
-        //         logger.success(`Renamed: ${plan.originalPath} -> ${plan.newPath}`);
-        //         logger.info(`Extraction status: ${plan.data.extraction_status}, Confidence: ${plan.data.confidence}`);
-                
-        //         // Update the current path after rename
-        //         const file = stateService.getAnalyzedFile(plan.originalPath);
-        //         if (file) {
-        //             file.currentPath = plan.newPath;
-        //             file.status = 'renamed';
-        //             stateService.addAnalyzedFile(file);
-        //             await stateService.saveState();
-        //             logger.debug(`Updated file state after rename: ${plan.originalPath} -> ${plan.newPath}`);
-        //         }
-        //     } catch (error) {
-        //         logger.error(`Failed to rename: ${plan.originalPath} - ${error}`);
-        //         await updateFileState(plan.originalPath, plan.data, stateService, 'analyzed', error instanceof Error ? error.message : String(error));
-        //     }
-        // }
-
-        await stateService.loadState();
         logger.debug('Scan process completed successfully');
         res.json({ success: true });
     } catch (error) {
@@ -147,59 +96,23 @@ app.post('/api/scan', (async (req: Request<{}, {}, { }>, res: Response) => {
     }
 }) as RequestHandler);
 
-interface UpdateRecordRequest {
-  originalPath: string;
-  data: Partial<InvoiceData>;
-  status?: 'analyzed' | 'renamed';
-}
 
-app.post('/api/update-record', async (req: Request<{}, {}, UpdateRecordRequest>, res: Response) => {
+app.post('/api/update-invoicedata', async (req: Request<{}, {}, FileInfo>, res: Response) => {
   try {
-    const { originalPath, data, status } = req.body;
-    const file = stateService.getAnalyzedFile(originalPath);
-    if (file) {
-      // Update the file data
-      file.data = { ...file.data, ...data };
-      if (status) {
-        file.status = status;
-      }
-      
-      // Save the updated state
-      stateService.addAnalyzedFile(file);
+    const { id, data } = req.body;
+    const fileInfo = stateService.getFileById(id);
+    if (fileInfo) {
+      fileInfo.data = { ...fileInfo.data, ...data } as InvoiceData;
+      fileInfo.status = 'analyzed';
       await stateService.saveState();
-      
-      // If the file is now analyzed with complete data, trigger the rename workflow
-      if (status === 'analyzed' && stateService.hasCompleteData(file.data)) {
-        const newPath = generateFileName(file.data, file.originalPath);
-        
-        // Create rename plan
-        const renamePlan = {
-          originalPath: file.originalPath,
-          newPath: newPath,
-          data: file.data,
-        };
-
-        // Execute rename plan
-        try {
-          await fs.rename(renamePlan.originalPath, renamePlan.newPath);
-          logger.success(`Renamed: ${renamePlan.originalPath} -> ${renamePlan.newPath}`);
-          
-          // Update file status to renamed
-          file.status = 'renamed';
-          file.currentPath = newPath;
-          stateService.addAnalyzedFile(file);
-          await stateService.saveState();
-        } catch (error) {
-          logger.error(`Failed to rename: ${renamePlan.originalPath}`);
-          throw error;
-        }
-      }
-      
+      logger.success(`Updated file: ${fileInfo.currentPath}`);
       res.json({ success: true });
     } else {
+      logger.error(`File not found: ${id}`);
       res.status(404).json({ error: 'File not found' });
     }
   } catch (error) {
+    logger.error(`Error updating record: ${error}`);
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
@@ -220,16 +133,26 @@ app.get('/api/get-pdf', (async (req: Request, res: Response) => {
   }
 }) as RequestHandler);
 
-app.get('/api/open-file', (async (req: Request, res: Response) => {
+app.get('/api/get-image', (async (req: Request, res: Response) => {
   try {
-    const { path } = req.query;
-    if (!path) {
+    const { path: filePath } = req.query;
+    if (!filePath || typeof filePath !== 'string') {
       return res.status(400).json({ error: 'Path is required' });
     }
     
-    // Open the file using the system's default application
-    await open(path as string);
-    res.json({ success: true });
+    // Read the file and send it
+    const fileBuffer = await fs.readFile(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp'
+    }[ext] || 'image/jpeg';
+    
+    res.setHeader('Content-Type', contentType);
+    res.send(fileBuffer);
   } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
   }
@@ -238,8 +161,7 @@ app.get('/api/open-file', (async (req: Request, res: Response) => {
 app.post('/api/clear-state', async (_req: Request, res: Response) => {
   try {
     // Reset state to empty
-    stateService.resetState();
-    await stateService.saveState();
+    await stateService.resetState();
     logger.info('State cleared successfully');
     res.json({ success: true });
   } catch (error) {
@@ -248,71 +170,78 @@ app.post('/api/clear-state', async (_req: Request, res: Response) => {
   }
 });
 
-// Update the reanalyze endpoint
-app.post('/api/reanalyze', (async (req: Request, res: Response) => {
+app.post('/api/analyze', (async (req: Request<{}, {}, { id: string }>, res: Response<{ data?: FileInfo, error?: string }>) => {
     try {
-        const { path } = req.body;
-        if (!path) {
-            return res.status(400).json({ error: 'Path is required' });
+        const { id } = req.body;
+        if (!id) {
+            return resizeBy.status(400).json({ error: 'ID is required' });
         }
 
-        const file = stateService.getAnalyzedFile(path);
-        if (!file) {
+
+        const fileInfo = stateService.getFileById(id);
+        if (!fileInfo) {
             return res.status(404).json({ error: 'File not found' });
         }
 
-        const fileInfo: FileInfo = {
-            path: file.originalPath,
-            type: file.type
-        };
-
-        const invoiceData = await processFile(fileInfo, stateService, pdfService, llmService);
+        logger.debug(`Analyze file: ${fileInfo?.currentPath}`);
+        const invoiceData = await processFile(fileInfo, pdfService, llmService);
         if (invoiceData) {
-            await updateFileState(file.originalPath, invoiceData, stateService);
-            res.json({ success: true, data: invoiceData });
+            fileInfo.data = { ...fileInfo.data, ...invoiceData } as InvoiceData;
+            fileInfo.status = 'analyzed';
+            await stateService.saveState();
+  
+            logger.debug(`Analyze file done: ${fileInfo?.currentPath}`);
+            res.json({ data: fileInfo });
         } else {
-            res.status(500).json({ error: 'Failed to analyze file' });
+          logger.debug(`Analyze file error`);
+          res.status(500).json({ error: 'Failed to analyze file' });
         }
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
 }) as RequestHandler);
 
-function generateFileName(data: InvoiceData, currentPath: string): string {
-  const { invoice_date, company_name, description, invoice_amount } = data;
-  
-  // Clean all fields to remove illegal characters
-  const cleanField = (field: string): string => {
-    return field
-      .replace(/[<>:"/\\|?*.,]/g, '_') // Replace illegal characters with underscore
-      .replace(/\s+/g, '_')            // Replace spaces with underscore
-      .replace(/_+/g, '_')             // Replace multiple underscores with single underscore
-      .replace(/^_+|_+$/g, '');        // Remove leading/trailing underscores
-  };
-  
-  // Clean each field
-  const cleanCompanyName = cleanField(company_name);
-  const cleanDescription = cleanField(description);
-  const cleanAmount = cleanField(invoice_amount);
-  
-  // Get the original file extension
-  const ext = path.extname(currentPath).toLowerCase();
-  
-  return path.join(
-    path.dirname(currentPath),
-    `${invoice_date}-${cleanCompanyName}-${cleanDescription}-eu${cleanAmount}${ext}`
-  );
-}
+app.post('/api/rename-file', async (req: Request<{}, {}, { id: string }>, res: Response) => {
+  try {
+    const { id } = req.body;
+    const fileInfo = stateService.getFileById(id);
+    if (fileInfo) {
+      if (fileInfo.data && stateService.hasCompleteData(fileInfo)) {
+        const newPath = generateFileName(fileInfo);
+        
+        // Execute rename plan
+        try {
+          await fs.rename(fileInfo.currentPath, newPath);
+          
+          // Update file status and path
+          fileInfo.status = 'renamed';
+          fileInfo.currentPath = newPath;
+          await stateService.saveState();
+          
+          logger.success(`Renamed: ${fileInfo.currentPath} -> ${newPath}`);
+
+          res.json({ success: true, newPath });
+        } catch (error) {
+          logger.error(`Failed to rename: ${fileInfo.currentPath}`);
+          throw error;
+        }
+      } else {
+        res.status(400).json({ error: 'File data is incomplete' });
+      }
+    } else {
+      res.status(404).json({ error: 'File not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
 
 // Start server
 const startServer = async (port: number, isFirstStart: boolean = true): Promise<void> => {
   try {
     app.listen(port, () => {
       console.log(`GUI server running at http://localhost:${port}`);
-      // Only open browser on first start
-      if (isFirstStart) {
-        open(`http://localhost:${port}`);
-      }
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes('EADDRINUSE')) {

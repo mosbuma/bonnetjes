@@ -1,3 +1,5 @@
+import { generateFileName } from './generic-tools.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -11,7 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let currentRecord = null;
-let hasChanges = false;
+let isAnalyzingAll = false;
+let shouldStopAnalysis = false;
+
 
 function setupEventListeners() {
     const hideProcessedToggle = document.getElementById('hideProcessedToggle');
@@ -28,15 +32,15 @@ function setupEventListeners() {
         loadRecords();
     });
 
-    const scanTestBtn = document.getElementById('scanTestBtn');
+    const importBtn = document.getElementById('importBtn');
 
-    scanTestBtn.addEventListener('click', () => {
+    importBtn.addEventListener('click', () => {
         runScan();
     });
 }
 
 async function runScan() {
-    const button = document.getElementById('scanTestBtn');
+    const button = document.getElementById('importBtn');
     const originalText = button.textContent;
     
     try {
@@ -79,37 +83,67 @@ async function loadRecords() {
     }
 }
 
+function updateRecordCard(fileInfo) {
+    const newCard = createRecordCard(fileInfo);
+
+    const existingCard = document.querySelector(`.record-card[data-path="${fileInfo.id}"]`);
+    if(existingCard) {
+        existingCard.replaceWith(newCard);
+    } else {
+        document.getElementById('records-container').appendChild(newCard);
+    }
+}
+
 function displayRecords(records) {
     const container = document.getElementById('records-container');
     container.innerHTML = '';
 
     const hideRenamed = document.getElementById('hideProcessedToggle').checked;
-    const filteredRecords = hideRenamed 
-        ? records.filter(record => record.status !== 'renamed')
-        : records;
+    const searchText = document.getElementById('searchInput').value.toLowerCase();
+    
+    const filteredRecords = records.filter(record => {
+        // First apply the hide renamed filter
+        if (hideRenamed && record.status === 'renamed') {
+            return false;
+        }
+        
+        // Then apply the search filter
+        if (searchText) {
+            const searchableText = [
+                record.currentPath,
+                record.originalPath,
+                record.data?.company_name,
+                record.data?.description,
+                record.data?.invoice_date,
+                record.data?.invoice_amount
+            ].filter(Boolean).join(' ').toLowerCase();
+            
+            return searchableText.includes(searchText);
+        }
+        
+        return true;
+    });
 
     if (filteredRecords.length === 0) {
         if(!hideRenamed && records.length === 0) {
             container.innerHTML = '<p>No records found.</p>';
         } else if(hideRenamed) {
             container.innerHTML = `<p>${records.length} files not shown.</p>`;
-         } else {
+        } else if(searchText) {
+            container.innerHTML = '<p>No matching records found.</p>';
+        } else {
             container.innerHTML = '<p>No files found.</p>';
         }
-
         return;
     }
 
-    filteredRecords.forEach(record => {
-        const card = createRecordCard(record);
-        container.appendChild(card);
-    });
+    filteredRecords.forEach(updateRecordCard);
 }
 
 function createRecordCard(record) {
     const card = document.createElement('div');
     card.className = 'record-card';
-    card.setAttribute('data-path', record.originalPath);
+    card.setAttribute('data-path', record.id);
     card.onclick = (e) => { e.preventDefault(); selectRecord(record) };
     
     const header = document.createElement('div');
@@ -120,30 +154,15 @@ function createRecordCard(record) {
     
     // Current filename (newPath if renamed, otherwise originalPath)
     const currentTitle = document.createElement('h3');
-    const currentPath = record.newPath || record.originalPath;
-    currentTitle.textContent = currentPath.split('/').pop();
-    
-    // Original filename (only show if different from current)
-    const originalTitle = document.createElement('h4');
-    originalTitle.className = 'original-filename';
-    if (record.newPath) {
-        originalTitle.textContent = record.originalPath.split('/').pop();
-    }
-    
-    // Proposed filename (only show for analyzed files that aren't renamed)
-    const proposedTitle = document.createElement('h4');
-    proposedTitle.className = 'proposed-filename';
-    if (record.status === 'analyzed' && record.status !== 'renamed') {
-        proposedTitle.textContent = 'Proposed: ' + generateFileName(record.data);
-    }
-    
+    currentTitle.textContent = record.currentPath.split('/').pop();
     titleContainer.appendChild(currentTitle);
-    if (record.newPath) {
-        titleContainer.appendChild(originalTitle);
-    }
-    if (record.status === 'analyzed' && record.status !== 'renamed') {
-        titleContainer.appendChild(proposedTitle);
-    }
+    
+    // Add predicted filename display
+    const predictedTitle = document.createElement('div');
+    predictedTitle.className = 'predicted-filename';
+    titleContainer.appendChild(predictedTitle);
+    
+    predictedTitle.textContent = generateFileName(record).split('/').pop();
     
     const status = document.createElement('span');
     status.className = `status-badge status-${record.status}`;
@@ -156,9 +175,8 @@ function createRecordCard(record) {
     fields.className = 'record-fields';
     
     // Only show fields for analyzed files that aren't renamed
-    if (record.status === 'analyzed' && record.status !== 'renamed') {
-        const data = record.data;
-        const fieldNames = ['invoice_date', 'company_name', 'description', 'invoice_amount', 'invoice_currency'];
+    if (record.data!==undefined) {
+        const fieldNames = ['invoice_date', 'company_name', 'description', 'invoice_currency', 'invoice_amount'];
         
         fieldNames.forEach(fieldName => {
             const fieldGroup = document.createElement('div');
@@ -169,52 +187,59 @@ function createRecordCard(record) {
             
             const input = document.createElement('input');
             input.type = 'text';
-            input.value = data[fieldName] || '';
+            input.value = record.data[fieldName] || '';
             input.placeholder = `Enter ${fieldName.replace('_', ' ')}`;
             input.setAttribute('data-field', fieldName);
             
             // Add input event listeners for real-time updates
             input.addEventListener('input', () => {
                 handleFieldChange(record, fieldName, input.value);
-                updatePreviewFilename(card, record);
             });
             
             fieldGroup.appendChild(label);
             fieldGroup.appendChild(input);
             fields.appendChild(fieldGroup);
         });
-        
-        // Add action buttons
-        const actionButtons = document.createElement('div');
-        actionButtons.className = 'action-buttons';
-        
-        const analyzeButton = document.createElement('button');
-        analyzeButton.className = 'btn btn-secondary btn-sm';
-        analyzeButton.textContent = 'Analyze';
-        analyzeButton.onclick = async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await reanalyzeFile(record);
-        };
-        
-        const renameButton = document.createElement('button');
-        renameButton.className = 'btn btn-primary btn-sm';
-        renameButton.textContent = 'Rename';
-        renameButton.disabled = record.status === 'renamed';
-        renameButton.onclick = async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('Rename button clicked for:', record.originalPath);
-            await renameFile(record);
-        };
-        
-        actionButtons.appendChild(analyzeButton);
-        actionButtons.appendChild(renameButton);
-        fields.appendChild(actionButtons);
     }
+        
+    // Add action buttons
+    const actionButtons = document.createElement('div');
+    actionButtons.className = 'action-buttons';
+    
+    const analyzeButton = document.createElement('button');
+    analyzeButton.className = 'btn btn-secondary btn-sm';
+    analyzeButton.textContent = 'Analyze';
+    analyzeButton.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectRecord(record);
+        await analyzeFile(record);
+    };
+    
+    const actionButton = document.createElement('button');
+    actionButton.className = 'btn btn-primary btn-sm btn-actionbutton';
+    actionButton.textContent = 'Update';
+    actionButton.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectRecord(record);
+        const hasChanges = checkForChanges(record);
+        if (hasChanges) {
+            await updateInvoiceData(record);
+        } else {
+            await renameFile(record);
+        }
+    };
+    
+    actionButtons.appendChild(analyzeButton);
+    actionButtons.appendChild(actionButton);
+    fields.appendChild(actionButtons);
     
     card.appendChild(header);
     card.appendChild(fields);
+    
+    // Initialize button state
+    updateActionButtons(card, record);
     
     return card;
 }
@@ -224,14 +249,20 @@ function selectRecord(record) {
     document.querySelectorAll('.record-card').forEach(card => {
         card.classList.remove('selected');
     });
-    
-    // Add selected class to clicked card
-    event.currentTarget.classList.add('selected');
-    
-    // Load PDF preview using the current path
-    const currentPath = record.newPath || record.originalPath;
-    loadPdfPreview(currentPath);
-    
+
+    // Add selected class to the card for this record
+    const card = document.querySelector(`.record-card[data-path="${record.id}"]`);
+    if (card) {
+        card.classList.add('selected');
+    }
+
+    // Load preview based on file type
+    if (record.type === 'pdf') {
+        loadPdfPreview(record.currentPath);
+    } else {
+        loadImagePreview(record.currentPath);
+    }
+
     currentRecord = record;
 }
 
@@ -272,163 +303,118 @@ async function loadPdfPreview(path) {
     }
 }
 
-function handleFieldChange(record, field, value) {
-    const card = document.querySelector(`.record-card[data-path="${record.originalPath}"]`);
-    if (card) {
-        const inputs = card.querySelectorAll('input');
-        const originalData = record.data;
-        let hasChanges = false;
-        
-        inputs.forEach(input => {
-            const fieldName = input.getAttribute('data-field');
-            if (fieldName && input.value !== (originalData[fieldName] || '')) {
-                hasChanges = true;
-            }
-        });
-        
-        updateActionButtons(card, record, hasChanges);
-    }
-}
-
-function handleFilenameChange(record, value) {
-    hasChanges = true;
-    updateActionButtons(record);
-}
-
-function updateActionButtons(card, record, hasChanges) {
-    const actionButtons = card.querySelector('.action-buttons');
-    const renameButton = card.querySelector('.btn-primary');
-    const resetButton = card.querySelector('.btn-secondary');
-    const proposedTitle = card.querySelector('.proposed-filename');
+async function loadImagePreview(path) {
+    const viewer = document.getElementById('pdf-viewer');
+    viewer.innerHTML = 'Loading...';
     
-    // Check if form data is valid
-    const inputs = card.querySelectorAll('input');
-    const data = {};
-    inputs.forEach(input => {
-        const field = input.getAttribute('data-field');
-        if (field) {
-            data[field] = input.value;
-        }
-    });
-    
-    const isValid = isFormDataValid(data);
-    
-    // Show/hide reset button based on changes
-    resetButton.style.display = hasChanges ? 'inline-block' : 'none';
-    
-    // Rename button is always enabled for analyzed files
-    renameButton.disabled = record.status !== 'analyzed' || !isValid;
-    
-    // Update proposed filename if it's an analyzed file
-    if (record.status === 'analyzed') {
-        proposedTitle.textContent = 'Proposed: ' + generateFileName(data);
-    }
-}
-
-function isFormDataValid(data) {
-    return (
-        data.invoice_date !== '' &&
-        data.company_name !== '' &&
-        data.description !== ''
-    );
-}
-
-async function applyChanges(record) {
     try {
-        console.log("applyChanges",record);
-        const card = document.querySelector(`.record-card[data-path="${record.originalPath}"]`);
-        const inputs = card.querySelectorAll('input');
-        const data = {};
-        
-        inputs.forEach(input => {
-            const field = input.getAttribute('data-field');
-            if (field === 'filename') {
-                // Handle filename change
-                const newPath = record.newPath ? 
-                    record.newPath.replace(/[^/]+$/, input.value) : 
-                    input.value;
-                record.newPath = newPath;
-            } else if (field) {
-                data[field] = input.value;
-            }
-        });
-        
-        const response = await fetch('/api/update-record', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                originalPath: record.originalPath,
-                data: data
-            }),
-        });
-        
+        const response = await fetch(`/api/get-image?path=${encodeURIComponent(path)}`);
         if (!response.ok) {
-            throw new Error('Failed to update record');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
         
-        hasChanges = false;
-        updateActionButtons(card, record, hasChanges);
-        loadRecords(); // Reload to show updated data
+        const img = document.createElement('img');
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        img.src = url;
+        
+        viewer.innerHTML = '';
+        viewer.appendChild(img);
     } catch (error) {
-        console.error('Error applying changes:', error);
-        alert('Error applying changes. Please try again.');
+        console.error('Error loading image:', error);
+        viewer.innerHTML = 'Error loading image preview';
     }
 }
 
-function resetChanges(record) {
-    const card = document.querySelector(`.record-card[data-path="${record.originalPath}"]`);
+function checkForChanges(record) {
+    const card = document.querySelector(`.record-card[data-path="${record.id}"]`);
+    if (!card) return false;
+    
     const inputs = card.querySelectorAll('input');
+    let hasChanges = false;
     
     inputs.forEach(input => {
-        const field = input.getAttribute('data-field');
-        if (field) {
-            input.value = record.data[field] || '';
+        const fieldName = input.getAttribute('data-field');
+        if (fieldName && (input.value.toString() !== (record.data[fieldName] || '').toString())) {
+            hasChanges = true;
         }
     });
     
-    updatePreviewFilename(card, record);
-    updateActionButtons(card, record, false);
+    return hasChanges;
 }
 
-function hasCompleteData(data) {
-    return (
-        data.invoice_date !== '' &&
-        data.company_name !== '' &&
-        data.description !== '' &&
-        data.invoice_amount !== ''
-    );
+async function handleFieldChange(record, field, value) {
+    const card = document.querySelector(`.record-card[data-path="${record.id}"]`);
+    if (!card) {
+        return;
+    }
+
+    // Update the predicted filename
+    const predictedTitle = card.querySelector('.predicted-filename');
+    predictedTitle.textContent = generateFileName(record).split('/').pop();
+
+    updateActionButtons(card, record);    
 }
 
-async function renameFile(record) {
-    console.log('renameFile called for:', record.originalPath);
+function updateActionButtons(card, record) {
+    const actionButtons = card.querySelector('.action-buttons');
+    const actionButton = actionButtons?.querySelector('.btn-actionbutton');
+    if (actionButton) {
+        const hasChanges = checkForChanges(record);
+        const isNew = record.status === 'new';
+
+        const currentFilename = record.currentPath.split('/').pop();
+
+        const proposedFilename = generateFileName(record).split('/').pop();
+
+        if(isNew) {
+            actionButton.style.display = 'none';
+        } else if (hasChanges) {
+            actionButton.style.display = 'inline-block';
+            actionButton.textContent = 'Update';
+        } else if (currentFilename !== proposedFilename) {
+            actionButton.style.display = 'inline-block';
+            actionButton.textContent = 'Rename';
+        } else {
+            actionButton.style.display = 'none';
+        }
+    } else {
+        console.error("updateActionButtons - no button", record);
+    }
+}
+
+async function updateInvoiceData(record) {
     try {
-        const card = document.querySelector(`.record-card[data-path="${record.originalPath}"]`);
+        const card = document.querySelector(`.record-card[data-path="${record.id}"]`);
         const inputs = card.querySelectorAll('input');
         const data = {};
         
+        let changed = false;
         inputs.forEach(input => {
             const field = input.getAttribute('data-field');
-            if (field) {
+            if (field && (input.value.toString() !== record.data[field].toString())) {
+                console.log("user changedfield",field, "value", input.value, "record.data[field]", record.data[field]);
                 data[field] = input.value;
+                changed = true;
             }
         });
-        
+
+        if (!changed) {
+            console.log("no changes to record", record.currentPath);
+            return;
+        }
+
         // Update the record with new data and set extraction_status to success
-        const response = await fetch('/api/update-record', {
+        const response = await fetch('/api/update-invoicedata', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                originalPath: record.originalPath,
-                data: {
-                    ...data,
-                    extraction_status: 'success',
-                    confidence: 'high'
-                },
-                status: 'analyzed'  // Set to analyzed to trigger the rename workflow
+                id: record.id,
+                data,
             }),
         });
         
@@ -441,50 +427,62 @@ async function renameFile(record) {
         await loadRecords();
         
         // If the current record was updated, update the preview
-        if (currentRecord && currentRecord.originalPath === record.originalPath) {
-            const newRecord = await fetch(`/api/records?path=${encodeURIComponent(record.originalPath)}`)
+        if (currentRecord && currentRecord.id === record.id) {
+            const newRecord = await fetch(`/api/records`)
                 .then(res => res.json())
-                .then(records => records.find(r => r.originalPath === record.originalPath));
+                .then(records => records.find(r => r.id === record.id));
             
             if (newRecord) {
                 currentRecord = newRecord;
-                loadPdfPreview(newRecord.newPath || newRecord.originalPath);
+                loadPdfPreview(newRecord.id || newRecord.id);
             }
         }
         
-        updateActionButtons(card, record, false);
+        updateActionButtons(card, record);
     } catch (error) {
         console.error('Error updating record:', error);
         alert('Error updating record: ' + error.message);
     }
 }
 
-function updatePreviewFilename(card, record) {
-    const proposedTitle = card.querySelector('.proposed-filename');
-    if (proposedTitle) {
-        proposedTitle.textContent = 'Proposed: ' + generateFileName(record.data);
-    }
-}
+async function analyzeFile(fileInfo) {
+    const card = document.querySelector(`.record-card[data-path="${fileInfo.id}"]`);
+    if (!card) return;
 
-async function reanalyzeFile(record) {
+    const analyzeButton = card.querySelector('.btn-secondary');
+    if (!analyzeButton) return;
+
+    const originalText = analyzeButton.textContent;
+    
     try {
-        const response = await fetch('/api/reanalyze', {
+        // Set button to busy state
+        analyzeButton.disabled = true;
+        analyzeButton.textContent = 'Analyzing...';
+        document.body.style.cursor = 'wait';
+        
+        const response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ path: record.originalPath }),
+            body: JSON.stringify({ id: fileInfo.id }),
         });
         
-        if (!response.ok) {
-            throw new Error('Reanalysis failed');
+        if (response.error) {
+            throw new Error('Analysis failed');
         }
         
-        // Reload records after successful reanalysis
-        await loadRecords();
+        // Update the card with the new data
+        const result = await response.json();
+        updateRecordCard(result.data);
     } catch (error) {
-        console.error('Error reanalyzing file:', error);
-        alert('Error reanalyzing file. Please try again.');
+        console.error('Error analyzing file:', error);
+        alert('Error analyzing file. Please try again.');
+    } finally {
+        // Reset button and cursor state
+        analyzeButton.disabled = false;
+        analyzeButton.textContent = originalText;
+        document.body.style.cursor = 'default';
     }
 }
 
@@ -505,6 +503,23 @@ function createHeader() {
     const controlsFlex = document.createElement('div');
     controlsFlex.className = 'd-flex justify-content-between align-items-center';
     
+    // Add the search and hide processed controls
+    const filterContainer = document.createElement('div');
+    filterContainer.className = 'd-flex align-items-center gap-3';
+    
+    // Add search input
+    const searchContainer = document.createElement('div');
+    searchContainer.className = 'search-container';
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'form-control';
+    searchInput.placeholder = 'Search...';
+    searchInput.id = 'searchInput';
+    searchInput.addEventListener('input', () => {
+        loadRecords();
+    });
+    searchContainer.appendChild(searchInput);
+    
     // Add the hide processed toggle
     const toggleContainer = document.createElement('div');
     toggleContainer.className = 'form-check form-switch';
@@ -512,16 +527,44 @@ function createHeader() {
         <input class="form-check-input" type="checkbox" id="hideProcessedToggle">
         <label class="form-check-label" for="hideProcessedToggle">Hide Renamed Files</label>
     `;
-    controlsFlex.appendChild(toggleContainer);
+    
+    filterContainer.appendChild(searchContainer);
+    filterContainer.appendChild(toggleContainer);
+    controlsFlex.appendChild(filterContainer);
     
     // Add the scan buttons
     const scanButtons = document.createElement('div');
     scanButtons.className = 'scan-buttons';
     
-    const scanTestBtn = document.createElement('button');
-    scanTestBtn.className = 'btn btn-outline-primary me-2';
-    scanTestBtn.id = 'scanTestBtn';
-    scanTestBtn.textContent = 'Import Files';
+    const importBtn = document.createElement('button');
+    importBtn.className = 'btn btn-outline-primary me-2';
+    importBtn.id = 'importBtn';
+    importBtn.textContent = 'Import Files';
+    
+    const analyzeAllBtn = document.createElement('button');
+    analyzeAllBtn.className = 'btn btn-outline-primary me-2';
+    analyzeAllBtn.id = 'analyzeAllBtn';
+    analyzeAllBtn.textContent = 'Analyze All';
+    analyzeAllBtn.onclick = async () => {
+        if (isAnalyzingAll) {
+            // User wants to cancel
+            shouldStopAnalysis = true;
+            analyzeAllBtn.textContent = 'Finishing current analysis...';
+            analyzeAllBtn.disabled = true;
+            return;
+        }
+        // User starts analysis
+        analyzeAllBtn.textContent = 'Stop';
+        analyzeAllBtn.disabled = false; // Allow stop
+        document.body.style.cursor = 'wait';
+
+        const result = await analyzeAllFiles();
+
+        // Reset button state after analysis/stop/error
+        analyzeAllBtn.textContent = 'Analyze All';
+        analyzeAllBtn.disabled = false;
+        document.body.style.cursor = 'default';
+    };
     
     const clearStateBtn = document.createElement('button');
     clearStateBtn.className = 'btn btn-danger';
@@ -551,8 +594,8 @@ function createHeader() {
         }
     };
     
-    scanButtons.appendChild(scanTestBtn);
-    // scanButtons.appendChild(scanBtn);
+    scanButtons.appendChild(importBtn);
+    scanButtons.appendChild(analyzeAllBtn);
     scanButtons.appendChild(clearStateBtn);
     controlsFlex.appendChild(scanButtons);
     
@@ -561,5 +604,91 @@ function createHeader() {
     header.appendChild(controls);
     
     return header;
+}
+
+async function renameFile(record) {
+    try {
+        const response = await fetch('/api/rename-file', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: record.id }),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to rename file');
+        }
+        
+        // Reload records to show updated status
+        await loadRecords();
+        
+        // If the current record was updated, update the preview
+        if (currentRecord && currentRecord.id === record.id) {
+            const newRecord = await fetch(`/api/records`)
+                .then(res => res.json())
+                .then(records => records.find(r => r.id === record.id));
+            
+            if (newRecord) {
+                currentRecord = newRecord;
+                loadPdfPreview(newRecord.currentPath);
+            }
+        }
+    } catch (error) {
+        console.error('Error renaming file:', error);
+        alert('Error renaming file: ' + error.message);
+    }
+}
+
+async function analyzeAllFiles() {
+    try {
+        if (isAnalyzingAll) {
+            // Should never get here, handled in event handler
+            return "cancelled";
+        }
+
+        // Get all records
+        const response = await fetch('/api/records');
+        if (!response.ok) {
+            throw new Error('Failed to fetch records');
+        }
+        const fileInfos = await response.json();
+
+        // Filter for new files
+        const newFileInfos = fileInfos.filter(fileInfo => fileInfo.status === 'new');
+        if (newFileInfos.length === 0) {
+            alert('No new files to analyze');
+            return "done";
+        }
+
+        // Set analyzing state
+        isAnalyzingAll = true;
+        shouldStopAnalysis = false;
+
+        // Analyze files one by one
+        for (let i = 0; i < newFileInfos.length; i++) {
+            if (shouldStopAnalysis) {
+                console.log('Analysis cancelled by user');
+                return "cancelled";
+            }
+
+            const fileInfo = newFileInfos[i];
+            // Optionally, you can update a progress indicator here
+            console.log("analyzeFile", fileInfo.currentPath.split('/').pop());
+            await analyzeFile(fileInfo);
+            // await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        await loadRecords();
+        return "done";
+    } catch (error) {
+        console.error('Error in analyze all:', error);
+        alert('Error analyzing files. Please try again.');
+        return "error";
+    } finally {
+        isAnalyzingAll = false;
+        shouldStopAnalysis = false;
+    }
 }
 

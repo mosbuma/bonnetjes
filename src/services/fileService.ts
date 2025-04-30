@@ -2,7 +2,7 @@ import { FileInfo } from '../utils/types.js';
 import { Logger } from '../utils/logger.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-
+import { v4 as uuidv4 } from 'uuid';
 export class FileService {
   private logger: Logger;
   private readonly SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
@@ -34,9 +34,12 @@ export class FileService {
           const ext = path.extname(entry.name).toLowerCase();
           if (this.SUPPORTED_EXTENSIONS.includes(ext)) {
             files.push({
-              path: fullPath,
-              type: ext === '.pdf' ? 'pdf' : 'image',
-              relativePath: path.relative(process.cwd(), fullPath),
+              id: uuidv4(),
+              originalPath: fullPath,
+              currentPath: fullPath,
+              timestamp: new Date().toISOString(),
+              status: 'new',
+              type: ext === '.pdf' ? 'pdf' : 'image'
             });
           }
         }
