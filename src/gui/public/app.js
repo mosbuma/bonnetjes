@@ -109,14 +109,13 @@ function displayRecords(records) {
         
         // Then apply the search filter
         if (searchText) {
+            const searchableFields = getFieldsForDocumentType(record.documentType);
             const searchableText = [
                 record.currentPath,
                 record.originalPath,
-                record.data?.company_name,
-                record.data?.description,
-                record.data?.invoice_date,
-                record.data?.invoice_amount
-            ].filter(Boolean).join(' ').toLowerCase();
+                record.documentType,
+                ...searchableFields.map(field => record.data?.[field]).filter(Boolean)
+            ].join(' ').toLowerCase();
             
             return searchableText.includes(searchText);
         }
@@ -164,19 +163,52 @@ function createRecordCard(record) {
     
     predictedTitle.textContent = generateFileName(record).split('/').pop();
     
+    const badgesContainer = document.createElement('div');
+    badgesContainer.className = 'badges-container';
+    
     const status = document.createElement('span');
     status.className = `status-badge status-${record.status}`;
     status.textContent = record.status;
+    badgesContainer.appendChild(status);
+    
+    // Add document type badge
+    if (record.data) {
+        const typeBadge = document.createElement('span');
+        typeBadge.className = 'status-badge status-type';
+        
+        // Determine document type based on data
+        let docType = 'Invoice';
+        if (record.data.movie_title) {
+            docType = 'Movie Cover';
+        } else if (record.data.document_category) {
+            docType = 'Generic';
+        }
+        
+        typeBadge.textContent = docType;
+        badgesContainer.appendChild(typeBadge);
+    }
     
     header.appendChild(titleContainer);
-    header.appendChild(status);
+    header.appendChild(badgesContainer);
     
     const fields = document.createElement('div');
     fields.className = 'record-fields';
     
     // Only show fields for analyzed files that aren't renamed
-    if (record.data!==undefined) {
-        const fieldNames = ['invoice_date', 'company_name', 'description', 'invoice_currency', 'invoice_amount'];
+    if (record.data !== undefined) {
+        let fieldNames = [];
+        
+        // Determine fields based on document type
+        if (record.data.movie_title) {
+            // Movie cover fields
+            fieldNames = ['movie_title', 'movie_description', 'duration'];
+        } else if (record.data.document_category) {
+            // Generic document fields
+            fieldNames = ['document_date', 'document_category', 'description', 'source'];
+        } else {
+            // Invoice fields (default)
+            fieldNames = ['invoice_date', 'company_name', 'description', 'invoice_currency', 'invoice_amount'];
+        }
         
         fieldNames.forEach(fieldName => {
             const fieldGroup = document.createElement('div');
@@ -225,7 +257,7 @@ function createRecordCard(record) {
         selectRecord(record);
         const hasChanges = checkForChanges(record);
         if (hasChanges) {
-            await updateInvoiceData(record);
+            await updateDocumentData(record);
         } else {
             await renameFile(record);
         }
@@ -242,6 +274,19 @@ function createRecordCard(record) {
     updateActionButtons(card, record);
     
     return card;
+}
+
+function getFieldsForDocumentType(documentType) {
+    switch (documentType) {
+        case 'invoice':
+            return ['invoice_date', 'company_name', 'description', 'invoice_currency', 'invoice_amount'];
+        case 'generic':
+            return ['document_date', 'document_category', 'description'];
+        case 'movie_cover':
+            return ['movie_title', 'movie_description', 'duration'];
+        default:
+            return [];
+    }
 }
 
 function selectRecord(record) {
@@ -385,7 +430,7 @@ function updateActionButtons(card, record) {
     }
 }
 
-async function updateInvoiceData(record) {
+async function updateDocumentData(record) {
     try {
         const card = document.querySelector(`.record-card[data-path="${record.id}"]`);
         const inputs = card.querySelectorAll('input');
@@ -407,7 +452,7 @@ async function updateInvoiceData(record) {
         }
 
         // Update the record with new data and set extraction_status to success
-        const response = await fetch('/api/update-invoicedata', {
+        const response = await fetch('/api/update-documentdata', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -689,6 +734,44 @@ async function analyzeAllFiles() {
     } finally {
         isAnalyzingAll = false;
         shouldStopAnalysis = false;
+    }
+}
+
+async function updateDocumentType(record) {
+    try {
+        const response = await fetch('/api/update-documenttype', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                id: record.id,
+                documentType: record.documentType
+            }),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update document type');
+        }
+        
+        // Reload records to show updated status
+        await loadRecords();
+        
+        // If the current record was updated, update the preview
+        if (currentRecord && currentRecord.id === record.id) {
+            const newRecord = await fetch(`/api/records`)
+                .then(res => res.json())
+                .then(records => records.find(r => r.id === record.id));
+            
+            if (newRecord) {
+                currentRecord = newRecord;
+                loadPdfPreview(newRecord.currentPath);
+            }
+        }
+    } catch (error) {
+        console.error('Error updating document type:', error);
+        alert('Error updating document type: ' + error.message);
     }
 }
 

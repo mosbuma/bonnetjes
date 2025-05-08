@@ -1,11 +1,11 @@
 import { StateService } from '../services/stateService.js';
-import { InvoiceData, FileInfo } from '../utils/types.js';
+import { DocumentData, FileInfo } from '../utils/types.js';
 import { LlmService } from '../services/llmService.js';
 import { PdfService } from '../services/pdfService.js';
 import path from 'path';
 
 // Helper functions
-export async function processFile(file: FileInfo, pdfService: PdfService, llmService: LlmService): Promise<InvoiceData | null> {
+export async function processFile(file: FileInfo, pdfService: PdfService, llmService: LlmService): Promise<DocumentData | null> {
     let imagePaths: string[] = [];
     try {
         // Always convert PDFs to images
@@ -25,7 +25,7 @@ export async function processFile(file: FileInfo, pdfService: PdfService, llmSer
             throw new Error('No valid images found to process');
         }
 
-        const invoiceDataArray = await llmService.extractInvoiceData(file.currentPath, imagePaths);
+        const invoiceDataArray = await llmService.extractDocumentData(file.currentPath, imagePaths);
         return invoiceDataArray[0];
     } finally {
         if (file.type === 'pdf') {
