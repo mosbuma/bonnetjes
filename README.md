@@ -1,6 +1,8 @@
-# 📜 Document Scanner and Renamer
+# 📜 Document Scanner and Renamer - Next.js Version
 
-A TypeScript-based tool for AI assisted scanning and renaming documents based on their content using LLM vision capabilities. Supports invoices, movie covers, and generic documents.
+A Next.js-based tool for AI assisted scanning and renaming documents based on their content using LLM vision capabilities. Supports invoices, movie covers, and generic documents.
+
+This is a port of the original Express-based application to Next.js with React and TypeScript.
 
 ## Features
 
@@ -19,7 +21,7 @@ A TypeScript-based tool for AI assisted scanning and renaming documents based on
 
 ## Prerequisites
 
-- Bun (latest version)
+- Node.js (latest LTS version)
 - TypeScript
 - LLM API key (OpenAI or compatible)
 - poppler-utils (for PDF conversion)
@@ -27,11 +29,15 @@ A TypeScript-based tool for AI assisted scanning and renaming documents based on
 ## Installation
 
 1. Clone the repository
-2. Install dependencies:
+2. Navigate to the Next.js project directory:
    ```bash
-   bun install
+   cd bonnetjes-nextjs
    ```
-3. Copy `.env.example` to `.env` and configure:
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Copy `.env.example` to `.env.local` and configure:
    ```env
    # OpenAI Configuration
    OPENAI_API_KEY=your-api-key-here
@@ -49,10 +55,17 @@ A TypeScript-based tool for AI assisted scanning and renaming documents based on
 
 ## Usage
 
-### Graphical User Interface
+### Development
 
 ```bash
-bun start
+npm run dev
+```
+
+### Production Build
+
+```bash
+npm run build
+npm start
 ```
 
 ### Environment Variables
@@ -83,8 +96,13 @@ Extracts:
 ### Movie Covers
 Extracts:
 - Movie title
-- Movie description
-- Duration
+- Type (movie or series)
+- Season number (for series)
+- Disc number (Movie Disc or Bonus Disc)
+- Media format (DVD or Blu-ray)
+- Description
+- Duration (HH:MM format)
+- IMDB ID
 
 ### Generic Documents
 Extracts:
@@ -93,6 +111,34 @@ Extracts:
 - Description
 - Source
 
+## Project Structure
+
+```
+bonnetjes-nextjs/
+├── src/
+│   ├── app/                 # Next.js App Router
+│   │   ├── api/            # API routes
+│   │   ├── globals.css     # Global styles
+│   │   ├── layout.tsx      # Root layout
+│   │   └── page.tsx        # Main page
+│   ├── components/         # React components
+│   ├── lib/               # Utility libraries
+│   └── types/             # TypeScript type definitions
+├── public/                # Static assets
+└── package.json
+```
+
+## API Routes
+
+- `GET /api/records` - Get all records
+- `POST /api/scan` - Scan for new files
+- `POST /api/analyze` - Analyze a specific file
+- `POST /api/update-invoicedata` - Update file data
+- `GET /api/get-pdf` - Get PDF file
+- `GET /api/get-image` - Get image file
+- `POST /api/clear-state` - Clear application state
+- `POST /api/clean-not-analyzed` - Remove unanalyzed files
+
 ## License
 
-MIT 
+MIT
