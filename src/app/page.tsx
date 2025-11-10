@@ -1,16 +1,64 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import RecordList from '@/components/RecordList';
 import FileViewer from '@/components/FileViewer';
+import OperationStatus from '@/components/OperationStatus';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchFiles, scanFiles } from '@/store/slices/filesSlice';
 
 export default function Home() {
   const dispatch = useAppDispatch();
-  const { files, loading, error, currentRecord } = useAppSelector((state) => state.files);
+  const { 
+    files, 
+    loading, 
+    error, 
+    currentRecord, 
+    isAnalyzingAll,
+    isRenamingAll,
+    isAnalyzingSingle,
+    analyzingSingleFile,
+    analysisProgress,
+    renameProgress
+  } = useAppSelector((state) => state.files);
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'analyzed' | 'bad'>('all');
+  const [lastOperationName, setLastOperationName] = useState<string>('');
+  const [wasShowingOperationStatus, setWasShowingOperationStatus] = useState(false);
 
+  // Determine if we should show operation status instead of file list
+  const showOperationStatus = useMemo(() => {
+    return isAnalyzingAll || isRenamingAll || isAnalyzingSingle || 
+           (loading && (lastOperationName === 'Clear State' || 
+                       lastOperationName === 'Clean Not Analyzed' || 
+                       lastOperationName === 'Cleanup Files' || 
+                       lastOperationName === 'Remove Renamed Files' || 
+                       lastOperationName === 'Reset Bad Files'));
+  }, [isAnalyzingAll, isRenamingAll, isAnalyzingSingle, loading, lastOperationName]);
+
+  // Clear operation name when loading completes
+  useEffect(() => {
+    if (!loading && lastOperationName) {
+      setLastOperationName('');
+    }
+  }, [loading, lastOperationName]);
+
+  // Clear preview when switching back to list mode after a long-running operation
+  useEffect(() => {
+    // Track when we transition from operation status mode to list mode
+    if (wasShowingOperationStatus && !showOperationStatus) {
+      // Clear the current record to reset the preview when switching back to list mode
+      dispatch({ type: 'files/setCurrentRecord', payload: null });
+    }
+    setWasShowingOperationStatus(showOperationStatus);
+  }, [showOperationStatus, wasShowingOperationStatus, dispatch]);
+
+  const handleOperationStart = (operationName: string) => {
+    setLastOperationName(operationName);
+  };
+
+  // Initial load - fetch all files on page load
   useEffect(() => {
     dispatch(fetchFiles());
   }, [dispatch]);
@@ -44,7 +92,14 @@ export default function Home() {
         <div className="col-12">
           <div className="card">
             <div className="card-body">
-              <Header onScan={handleScan} />
+              <Header 
+                onScan={handleScan}
+                searchText={searchText}
+                statusFilter={statusFilter}
+                onSearchChange={setSearchText}
+                onStatusFilterChange={setStatusFilter}
+                onOperationStart={handleOperationStart}
+              />
               {loading && (
                 <div className="text-center mb-3">
                   <div className="spinner-border" role="status">
@@ -53,13 +108,37 @@ export default function Home() {
                 </div>
               )}
               <div className="row">
-                <div className="col-md-6">
-                  <RecordList 
-                    records={files}
-                    onRecordSelect={(record) => dispatch({ type: 'files/setCurrentRecord', payload: record })}
-                    onRecordUpdate={(record) => dispatch({ type: 'files/updateFile', payload: record })}
-                    currentRecord={currentRecord}
-                  />
+                <div className="col-md-6" style={{ position: 'relative' }}>
+                  {/* Operation Status - shown when showOperationStatus is true */}
+                  <div style={{ display: showOperationStatus ? 'block' : 'none' }}>
+                    <OperationStatus
+                      isAnalyzingAll={isAnalyzingAll}
+                      isRenamingAll={isRenamingAll}
+                      isAnalyzingSingle={isAnalyzingSingle}
+                      analyzingSingleFile={analyzingSingleFile}
+                      analysisProgress={analysisProgress}
+                      renameProgress={renameProgress}
+                      operationName={lastOperationName || 
+                        (isAnalyzingAll ? 'Analyze All' : 
+                         isRenamingAll ? 'Rename All' : 
+                         isAnalyzingSingle ? 'Analyze Single File' : 
+                         'Processing')}
+                      currentRecord={currentRecord}
+                      onRecordSelect={(record) => dispatch({ type: 'files/setCurrentRecord', payload: record })}
+                      onRecordUpdate={(record) => dispatch({ type: 'files/updateFile', payload: record })}
+                    />
+                  </div>
+                  {/* Record List - always rendered but hidden when showing operation status */}
+                  <div style={{ display: showOperationStatus ? 'none' : 'block' }}>
+                    <RecordList 
+                      records={files}
+                      searchText={searchText}
+                      statusFilter={statusFilter}
+                      onRecordSelect={(record) => dispatch({ type: 'files/setCurrentRecord', payload: record })}
+                      onRecordUpdate={(record) => dispatch({ type: 'files/updateFile', payload: record })}
+                      currentRecord={currentRecord}
+                    />
+                  </div>
                 </div>
                 <div className="col-md-6">
                   <FileViewer 

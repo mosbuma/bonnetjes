@@ -34,7 +34,8 @@ export type DocumentData = InvoiceData | GenericDocumentData | MovieCoverData;
 export enum DocumentType {
   INVOICE = 'invoice',
   GENERIC = 'generic',
-  MOVIE_COVER = 'movie_cover'
+  MOVIE_COVER = 'movie_cover',
+  REKENINGAFSCHRIFT = 'rekeningafschrift'
 }
 
 export interface FileInfo {
@@ -43,6 +44,7 @@ export interface FileInfo {
   currentPath: string;       // Current absolute path in filesystem
   data?: DocumentData;       // Document data after analysis
   timestamp: string;        // When the file was first seen
+  lastModified?: string;    // When the file was last modified (for change tracking)
   // status no longer includes 'renamed'; use isRenamed (derived) instead
   status: 'new' | 'analyzed' | 'bad';
   error?: string;

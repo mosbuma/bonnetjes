@@ -251,6 +251,11 @@ body {
     margin-bottom: 1rem;
 }
 
+.header-shared-data {
+    background-color: #fffacd; /* Light yellow */
+    border-bottom: 1px solid #ffd700; /* Gold border for shared data */
+}
+
 .header h1 {
     margin: 0;
     font-size: 1.5rem;

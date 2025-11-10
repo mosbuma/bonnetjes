@@ -78,7 +78,9 @@ export async function POST(req: NextRequest) {
     stateService.removeFileById(targetFileId);
     
     // Add merged file to state
-    await stateService.createFileInfo(mergedFile);
+    await stateService.createFileInfo(mergedFile, false); // Don't save immediately
+    await stateService.loadState(); // Reload to get the file with generated ID
+    const savedMergedFile = stateService.getFileById(mergedFileId);
     
     // Save the updated state
     await stateService.saveState();
@@ -88,6 +90,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       mergedFilePath: mergedPdfPath,
+      mergedFile: savedMergedFile || mergedFile, // Return the merged file for immediate state update
+      deletedFileIds: [currentFileId, targetFileId], // Return IDs of deleted files
       deletedFiles: [currentDeletePath, targetDeletePath]
     });
     

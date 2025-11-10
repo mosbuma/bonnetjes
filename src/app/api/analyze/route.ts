@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StateService } from '@/lib/stateService';
 import { LlmService } from '@/lib/llmService';
 import { PdfService } from '@/lib/pdfService';
+import { ImageService } from '@/lib/imageService';
 import { CacheService } from '@/lib/cacheService';
 import { Logger } from '@/lib/logger';
 import { DocumentType } from '@/types';
@@ -12,6 +13,7 @@ const logger = new Logger(true);
 const stateService = new StateService(logger);
 const llmService = new LlmService(logger);
 const pdfService = new PdfService(logger);
+const imageService = new ImageService(logger);
 const cacheService = new CacheService(logger);
 
 // Initialize services
@@ -70,7 +72,7 @@ export async function POST(request: NextRequest) {
     // If no cached result or force reanalyze, process the file
     if (!result) {
       logger.info(`Processing file with LLM: ${fileInfo.currentPath}`);
-      const processResult = await processFile(fileInfo, pdfService, llmService);
+      const processResult = await processFile(fileInfo, pdfService, llmService, imageService);
       
       if (processResult) {
         // Convert string documentType to enum
@@ -104,6 +106,7 @@ export async function POST(request: NextRequest) {
       fileInfo.documentType = result.documentType;
       fileInfo.status = 'analyzed';
       fileInfo.error = undefined; // Clear any previous errors
+      stateService.markFileModified(fileInfo.id);
       await stateService.saveState();
       
       const action = usedCache ? 'Retrieved cached analysis' : 'Analyzed file';
@@ -117,6 +120,7 @@ export async function POST(request: NextRequest) {
     } else {
       fileInfo.status = 'bad';
       fileInfo.error = 'Failed to analyze file';
+      stateService.markFileModified(fileInfo.id);
       await stateService.saveState();
       logger.error(`File marked as bad after failed analysis: ${fileInfo.currentPath}`);
       return NextResponse.json({ 
@@ -128,6 +132,7 @@ export async function POST(request: NextRequest) {
     if (fileInfo) {
       fileInfo.status = 'bad';
       fileInfo.error = `Error analyzing file: ${error instanceof Error ? error.message : String(error)}`;
+      stateService.markFileModified(fileInfo.id);
       await stateService.saveState();
       logger.error(`File marked as bad after error: ${fileInfo.currentPath}`);
     }

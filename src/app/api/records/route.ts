@@ -17,13 +17,34 @@ async function initializeState() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await initializeState();
-    // Always refresh state to ensure we get the latest data
-    await stateService.refreshState();
+    // No need to refresh state on every read - state is already in memory
+    // Only refresh if we suspect it might be stale (e.g., after a long time)
     const files = stateService.getKnownFiles();
-    logger.debug(`Returning ${files.length} records`);
+    
+    // Check for 'since' query parameter
+    const url = new URL(request.url);
+    const sinceParam = url.searchParams.get('since');
+    
+    if (sinceParam) {
+      // Return only files modified after the 'since' timestamp
+      const sinceTimestamp = new Date(sinceParam).getTime();
+      const changedFiles = files.filter(file => {
+        // Check if file was modified after 'since' timestamp
+        const fileModified = file.lastModified 
+          ? new Date(file.lastModified).getTime()
+          : new Date(file.timestamp).getTime();
+        return fileModified > sinceTimestamp;
+      });
+      
+      logger.debug(`Returning ${changedFiles.length} changed records (since ${sinceParam})`);
+      return NextResponse.json(changedFiles);
+    }
+    
+    // No 'since' parameter - return all files (for initial load)
+    logger.debug(`Returning ${files.length} records (full list)`);
     return NextResponse.json(files);
   } catch (error) {
     logger.error(`Error getting records: ${error}`);

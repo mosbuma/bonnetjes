@@ -1,11 +1,13 @@
 import { DocumentData, FileInfo } from '@/types';
 import { LlmService } from './llmService';
 import { PdfService } from './pdfService';
+import { ImageService } from './imageService';
 import path from 'path';
 
 // Helper functions
-export async function processFile(file: FileInfo, pdfService: PdfService, llmService: LlmService): Promise<{ data: DocumentData, documentType: string } | null> {
+export async function processFile(file: FileInfo, pdfService: PdfService, llmService: LlmService, imageService: ImageService): Promise<{ data: DocumentData, documentType: string } | null> {
     let imagePaths: string[] = [];
+    let rescaledImagePaths: string[] = [];
     try {
         // Always convert PDFs to images
         if (file.type === 'pdf') {
@@ -24,7 +26,15 @@ export async function processFile(file: FileInfo, pdfService: PdfService, llmSer
             throw new Error('No valid images found to process');
         }
 
-        const invoiceDataArray = await llmService.extractDocumentData(file.currentPath, imagePaths);
+        // Rescale images if they exceed 300 DPI
+        const processedImagePaths = await imageService.rescaleImagesIfNeeded(imagePaths);
+        
+        // Track which images were rescaled (those different from original)
+        rescaledImagePaths = processedImagePaths.filter((p, index) => 
+            p !== imagePaths[index]
+        );
+
+        const invoiceDataArray = await llmService.extractDocumentData(file.currentPath, processedImagePaths);
         const data = invoiceDataArray[0];
         
         // Determine document type from the data
@@ -37,8 +47,13 @@ export async function processFile(file: FileInfo, pdfService: PdfService, llmSer
         
         return { data, documentType };
     } finally {
+        // Cleanup PDF temp images
         if (file.type === 'pdf') {
             await pdfService.cleanupTempImages(imagePaths);
+        }
+        // Cleanup rescaled images
+        if (rescaledImagePaths.length > 0) {
+            await imageService.cleanupTempImages(rescaledImagePaths);
         }
     }
 } 

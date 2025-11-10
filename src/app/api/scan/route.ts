@@ -39,7 +39,10 @@ export async function POST() {
     logger.debug(`Found ${files.length} files to process`);
 
     let newFilesCount = 0;
-    for (const file of files) {
+    const BATCH_SIZE = 100; // Save state every 100 files to avoid too many writes
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const fileInfo = stateService.getFileByCurrentPath(file.currentPath);
       if (fileInfo !== undefined) {
         const filename = file.currentPath.split('/').pop();
@@ -56,23 +59,44 @@ export async function POST() {
 
       try {
         logger.info(`Adding ${file.currentPath}`);
-        await stateService.createFileInfo(file);
+        // Don't save immediately during bulk scan - save in batches
+        const saveImmediately = (i + 1) % BATCH_SIZE === 0 || i === files.length - 1;
+        await stateService.createFileInfo(file, saveImmediately);
         newFilesCount++;
+        
+        // Log progress for large scans
+        if ((i + 1) % 500 === 0) {
+          logger.info(`Progress: ${i + 1}/${files.length} files processed, ${newFilesCount} new files added`);
+        }
       } catch (error) {
         console.log(error);
         logger.error(`Error processing file ${file.currentPath}: ${error}`);
-        throw error;
+        // Don't throw - continue processing other files
+        // throw error;
       }
     }
 
-    // Reload state to ensure it's fresh
+    // Final save to ensure all files are persisted
+    if (newFilesCount > 0) {
+      logger.info(`Saving final state with ${newFilesCount} new files...`);
+      await stateService.saveState();
+    }
+
+    // Reload state to ensure it's fresh and verify count
     await stateService.loadState();
+    const finalFileCount = stateService.getKnownFiles().length;
     
-    logger.debug(`Scan process completed successfully. Added ${newFilesCount} new files.`);
+    logger.info(`Scan process completed. Added ${newFilesCount} new files. Total files in state: ${finalFileCount}`);
+    
+    if (newFilesCount > 0 && finalFileCount < newFilesCount) {
+      logger.warn(`WARNING: Expected at least ${newFilesCount} new files, but state only contains ${finalFileCount} total files. Some files may not have been saved.`);
+    }
+    
     return NextResponse.json({ 
       success: true, 
       newFilesCount,
-      totalFilesFound: files.length 
+      totalFilesFound: files.length,
+      totalFilesInState: finalFileCount
     });
   } catch (error) {
     logger.error(`Error running scan: ${error}`);
@@ -81,4 +105,4 @@ export async function POST() {
       { status: 500 }
     );
   }
-} 
+}

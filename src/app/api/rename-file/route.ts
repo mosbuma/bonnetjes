@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
-import path from 'path';
 import { generateFileName } from '@/lib/generic-tools';
-import { FileInfo, State } from '@/types';
 import { StateService } from '@/lib/stateService';
 import { Logger } from '@/lib/logger';
 
 const logger = new Logger(true);
 const stateService = new StateService(logger);
-const STATE_PATH = path.resolve(process.cwd(), 'state', 'state.json');
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,10 +14,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing record id' }, { status: 400 });
     }
 
-    // Load state.json
-    const stateRaw = await fs.readFile(STATE_PATH, 'utf-8');
-    const state = JSON.parse(stateRaw) as State;
-    const record: FileInfo | undefined = state.knownFiles.find((f: FileInfo) => f.id === id);
+    // Load state using StateService
+    await stateService.loadState();
+    const record = stateService.getFileById(id);
     if (!record) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
@@ -35,15 +31,24 @@ export async function POST(req: NextRequest) {
     const absOldPath = record.currentPath;
     const absNewPath = newPath;
 
+    const alreadyExists = await fs.access(absNewPath).then(() => true).catch(() => false);
+    if(alreadyExists) {
+      return NextResponse.json({ error: 'File already exists' }, { status: 400 });
+    } 
     // Rename the file
     await fs.rename(absOldPath, absNewPath);
 
-    // Update state
-    record.currentPath = newPath;
-    await fs.writeFile(STATE_PATH, JSON.stringify(state, null, 2), 'utf-8');
-
-    // Refresh the state service to ensure it's in sync
-    await stateService.refreshState();
+    // Update state using StateService (which handles atomic writes and backups)
+    await stateService.loadState();
+    const fileInfo = stateService.getFileById(id);
+    if (fileInfo) {
+      fileInfo.currentPath = newPath;
+      fileInfo.lastModified = new Date().toISOString();
+      await stateService.saveState();
+      
+      // Return the full updated file so client can update state immediately
+      return NextResponse.json({ success: true, newPath, file: fileInfo });
+    }
 
     return NextResponse.json({ success: true, newPath });
   } catch (error) {

@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     if (fileInfo) {
       fileInfo.data = { ...fileInfo.data, ...data };
       fileInfo.status = 'analyzed';
+      stateService.markFileModified(id);
       await stateService.saveState();
       logger.success(`Updated file: ${fileInfo.currentPath}`);
       return NextResponse.json({ success: true });

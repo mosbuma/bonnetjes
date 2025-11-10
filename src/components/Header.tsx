@@ -6,18 +6,38 @@ import { cleanupFiles, clearState, cleanNotAnalyzed, resetBadFiles, analyzeAll, 
 
 interface HeaderProps {
   onScan: () => void;
+  searchText: string;
+  statusFilter: 'all' | 'new' | 'analyzed' | 'bad';
+  onSearchChange: (text: string) => void;
+  onStatusFilterChange: (filter: 'all' | 'new' | 'analyzed' | 'bad') => void;
+  onOperationStart?: (operationName: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onScan }) => {
+const Header: React.FC<HeaderProps> = ({ onScan, searchText, statusFilter, onSearchChange, onStatusFilterChange, onOperationStart }) => {
   const dispatch = useAppDispatch();
   const { loading, isAnalyzingAll, shouldStopAnalysis, analysisProgress, isAnalyzingSingle, analyzingSingleFile, isRenamingAll, renameProgress } = useAppSelector((state) => state.files);
-  const [searchText, setSearchText] = useState('');
   const [cacheStats, setCacheStats] = useState<{ total: number; lastUpdated: string } | null>(null);
+  const [privacyStatus, setPrivacyStatus] = useState<{ isSharedData: boolean; privacyMode: 'shared' | 'private' } | null>(null);
 
   useEffect(() => {
     // Load cache stats
     loadCacheStats();
+    // Load privacy status
+    loadPrivacyStatus();
   }, []);
+
+  // Reload cache stats when single file analysis completes
+  const prevIsAnalyzingSingle = React.useRef(isAnalyzingSingle);
+  useEffect(() => {
+    // Only reload if we transitioned from analyzing to not analyzing
+    if (prevIsAnalyzingSingle.current && !isAnalyzingSingle) {
+      // Small delay to ensure server has saved cache
+      setTimeout(() => {
+        loadCacheStats();
+      }, 200);
+    }
+    prevIsAnalyzingSingle.current = isAnalyzingSingle;
+  }, [isAnalyzingSingle]);
 
   const loadCacheStats = async () => {
     try {
@@ -28,6 +48,18 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
       }
     } catch (error) {
       console.error('Error loading cache stats:', error);
+    }
+  };
+
+  const loadPrivacyStatus = async () => {
+    try {
+      const response = await fetch('/api/privacy-status');
+      if (response.ok) {
+        const status = await response.json();
+        setPrivacyStatus(status);
+      }
+    } catch (error) {
+      console.error('Error loading privacy status:', error);
     }
   };
 
@@ -51,6 +83,7 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
   const handleRemoveRenamedFiles = async () => {
     if (confirm('Are you sure you want to remove all renamed files from the state? This will remove all files that have been successfully renamed.')) {
       try {
+        onOperationStart?.('Remove Renamed Files');
         const result = await dispatch(removeRenamedFiles()).unwrap();
         const message = `Renamed files removed successfully!\n\n` +
           `Files removed: ${result.removedCount}\n` +
@@ -65,6 +98,7 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
   const handleClearState = async () => {
     if (confirm('Are you sure you want to clear the state? This will remove all analyzed files from the state.')) {
       try {
+        onOperationStart?.('Clear State');
         await dispatch(clearState()).unwrap();
         alert('State cleared successfully!');
       } catch (error) {
@@ -76,6 +110,7 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
   const handleCleanNotAnalyzed = async () => {
     if (confirm('Are you sure you want to remove all not analyzed files from the state? This will only remove files that have not been processed yet.')) {
       try {
+        onOperationStart?.('Clean Not Analyzed');
         await dispatch(cleanNotAnalyzed()).unwrap();
         alert('Not analyzed files cleaned successfully!');
       } catch (error) {
@@ -87,6 +122,7 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
   const handleResetBadFiles = async () => {
     if (confirm('Are you sure you want to reset all bad files? This will allow them to be analyzed again.')) {
       try {
+        onOperationStart?.('Reset Bad Files');
         await dispatch(resetBadFiles()).unwrap();
         alert('Bad files reset successfully!');
       } catch (error) {
@@ -98,6 +134,7 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
   const handleCleanupNonExistent = async () => {
     if (confirm('Are you sure you want to remove all non-existent files from the state? This will remove all files that do not exist on the filesystem.')) {
       try {
+        onOperationStart?.('Cleanup Files');
         await dispatch(cleanupFiles()).unwrap();
         alert('Non-existent files cleaned successfully!');
       } catch (error) {
@@ -114,6 +151,14 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
         `Successfully analyzed: ${result.processed}\n` +
         `Failed: ${result.failed}`;
       alert(message);
+      
+      // Update cache stats if provided in result
+      if (result.cacheStats) {
+        setCacheStats(result.cacheStats);
+      } else {
+        // Fallback: reload cache stats
+        loadCacheStats();
+      }
     } catch (error) {
       alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -141,9 +186,17 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
     }
   };
 
+  const headerTitle = privacyStatus?.isSharedData 
+    ? 'Bonnetje (Shared data)' 
+    : 'Bonnetje (Private data)';
+  
+  const headerClassName = privacyStatus?.isSharedData 
+    ? 'header header-shared-data' 
+    : 'header';
+
   return (
-    <div className="header">
-      <h1>Bonnetje</h1>
+    <div className={headerClassName}>
+      <h1>{headerTitle}</h1>
       
       <div className="row mb-3">
         <div className="col-12">
@@ -157,8 +210,40 @@ const Header: React.FC<HeaderProps> = ({ onScan }) => {
                   className="form-control"
                   placeholder="Search..."
                   value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
+                  onChange={(e) => onSearchChange(e.target.value)}
                 />
+              </div>
+              
+              {/* Status Filter Buttons */}
+              <div className="btn-group" role="group">
+                <button
+                  type="button"
+                  className={`btn btn-sm ${statusFilter === 'all' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => onStatusFilterChange('all')}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${statusFilter === 'new' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => onStatusFilterChange('new')}
+                >
+                  New
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${statusFilter === 'analyzed' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => onStatusFilterChange('analyzed')}
+                >
+                  Analyzed
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${statusFilter === 'bad' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => onStatusFilterChange('bad')}
+                >
+                  Bad
+                </button>
               </div>
               
               {/* Cache Stats */}

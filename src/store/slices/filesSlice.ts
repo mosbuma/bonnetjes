@@ -7,6 +7,7 @@ interface FilesState {
   currentRecord: FileInfo | null;
   loading: boolean;
   error: string | null;
+  lastFetchTime: string | null; // ISO timestamp of last fetch
   isAnalyzingAll: boolean;
   shouldStopAnalysis: boolean;
   isAnalyzingSingle: boolean;
@@ -31,6 +32,7 @@ const initialState: FilesState = {
   currentRecord: null,
   loading: false,
   error: null,
+  lastFetchTime: null,
   isAnalyzingAll: false,
   shouldStopAnalysis: false,
   isAnalyzingSingle: false,
@@ -43,12 +45,14 @@ const initialState: FilesState = {
 // Async thunks for API calls
 export const fetchFiles = createAsyncThunk(
   'files/fetchFiles',
-  async () => {
-    const response = await fetch('/api/records');
+  async (since?: string) => {
+    const url = since ? `/api/records?since=${encodeURIComponent(since)}` : '/api/records';
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to fetch files');
     }
-    return response.json();
+    const data = await response.json();
+    return { files: data, isIncremental: !!since };
   }
 );
 
@@ -83,21 +87,24 @@ export const renameFile = createAsyncThunk(
       throw new Error(errorData.error || 'Rename failed');
     }
     
-    // After successful rename, fetch updated files
-    dispatch(fetchFiles());
-    return response.json();
+    // Return response - file data will be used to update state immediately
+    const result = await response.json();
+    return result;
   }
 );
 
 export const cleanupFiles = createAsyncThunk(
   'files/cleanupFiles',
-  async () => {
+  async (_, { dispatch }) => {
     const response = await fetch('/api/cleanup-nonexistent-files', {
       method: 'POST',
     });
     if (!response.ok) {
       throw new Error('Cleanup failed');
     }
+    
+    // After cleanup, fetch updated files
+    dispatch(fetchFiles());
     return response.json();
   }
 );
@@ -112,19 +119,32 @@ export const analyzeFile = createAsyncThunk(
     // Set single file analysis state
     dispatch(setAnalyzingSingleFile(fileName));
     
-    const response = await fetch('/api/analyze', {
+    // Use batch analyze endpoint with a batch of 1
+    const response = await fetch('/api/analyze-batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, forceReanalyze }),
+      body: JSON.stringify({ ids: [id], forceReanalyze }),
     });
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Analysis failed');
     }
     
-    // After successful analysis, fetch updated files
-    dispatch(fetchFiles());
-    return response.json();
+    const batchResult = await response.json();
+    const fileResult = batchResult.results?.[0];
+    
+    if (!fileResult || !fileResult.success) {
+      throw new Error(fileResult?.error || 'Analysis failed');
+    }
+    
+    // Return result - state will be updated immediately in the reducer
+    // No need to fetchFiles since we have the updated file data
+    return { 
+      data: fileResult.data, 
+      usedCache: fileResult.usedCache, 
+      cacheHit: fileResult.usedCache,
+      cacheStats: batchResult.cacheStats // Include cache stats
+    };
   }
 );
 
@@ -140,9 +160,9 @@ export const updateFileData = createAsyncThunk(
       throw new Error('Update failed');
     }
     
-    // After successful update, fetch updated files
-    dispatch(fetchFiles());
-    return response.json();
+    // Return response - file data will be used to update state immediately
+    const result = await response.json();
+    return result;
   }
 );
 
@@ -231,9 +251,9 @@ export const mergeFiles = createAsyncThunk(
       throw new Error(data.error || 'Merge files failed');
     }
     
-    // After merging, fetch updated files
-    dispatch(fetchFiles());
-    return response.json();
+    // Return response - file data will be used to update state immediately
+    const result = await response.json();
+    return result;
   }
 );
 
@@ -251,6 +271,7 @@ export const analyzeAll = createAsyncThunk(
     
     let processedCount = 0;
     let failedCount = 0;
+    let lastCacheStats: { total: number; lastUpdated: string } | null = null;
     
     for (const file of filesToAnalyze) {
       // Check if we should stop
@@ -268,22 +289,40 @@ export const analyzeAll = createAsyncThunk(
           currentFile: file.currentPath.split('/').pop() || file.id
         }));
         
-        // Analyze individual file
-        const response = await fetch('/api/analyze', {
+        // Analyze individual file using batch endpoint
+        const response = await fetch('/api/analyze-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: file.id }),
+          body: JSON.stringify({ ids: [file.id] }),
         });
         
         if (response.ok) {
-          processedCount++;
-          // Refresh state after each successful analysis to show real-time progress
-          dispatch(fetchFiles());
+          const batchResult = await response.json();
+          const fileResult = batchResult.results?.[0];
+          
+          // Capture cache stats from the batch result
+          if (batchResult.cacheStats) {
+            lastCacheStats = batchResult.cacheStats;
+          }
+          
+          if (fileResult && fileResult.success && fileResult.data) {
+            processedCount++;
+            // Set the analyzed file as the current record to display its results
+            const analyzedRecord = {
+              ...fileResult.data,
+              status: 'analyzed' as const,
+            };
+            dispatch(setCurrentRecord(analyzedRecord));
+            // Update file in state immediately (no need to fetchFiles)
+            dispatch({ type: 'files/updateFile', payload: analyzedRecord });
+          } else {
+            failedCount++;
+            console.warn(`Failed to analyze file ${file.currentPath}:`, fileResult?.error || 'Unknown error');
+          }
         } else {
           failedCount++;
-          console.warn(`Failed to analyze file ${file.currentPath}:`, await response.text());
-          // Also refresh state after failed analysis to show updated status
-          dispatch(fetchFiles());
+          const errorText = await response.text();
+          console.warn(`Failed to analyze file ${file.currentPath}:`, errorText);
         }
         
         // Small delay to prevent overwhelming the server
@@ -292,8 +331,6 @@ export const analyzeAll = createAsyncThunk(
       } catch (error) {
         failedCount++;
         console.error(`Error analyzing file ${file.currentPath}:`, error);
-        // Refresh state after error to show updated status
-        dispatch(fetchFiles());
       }
     }
     
@@ -305,13 +342,17 @@ export const analyzeAll = createAsyncThunk(
       currentFile: null
     }));
     
-    // Final fetch to ensure we have the latest state
-    dispatch(fetchFiles());
+    // Final sync fetch to ensure we have the latest state (optional, but good for consistency)
+    // State is already updated incrementally during the loop
+    setTimeout(() => {
+      dispatch(fetchFiles());
+    }, 500);
     
     return {
       total: filesToAnalyze.length,
       processed: processedCount,
-      failed: failedCount
+      failed: failedCount,
+      cacheStats: lastCacheStats // Include cache stats from last analysis
     };
   }
 );
@@ -353,72 +394,97 @@ export const renameAll = createAsyncThunk(
       throw new Error('No files to rename');
     }
     
-    let processedCount = 0;
-    let failedCount = 0;
+    // Sort files to match the visible list order (alphabetically by basename, then extension)
+    const sortedFilesToRename = [...filesToRename].sort((a, b) => {
+      const aBasename = a.currentPath.split('/').pop()?.split('.').shift() || '';
+      const bBasename = b.currentPath.split('/').pop()?.split('.').shift() || '';
+      const aExtension = a.currentPath.split('/').pop()?.split('.').pop() || '';
+      const bExtension = b.currentPath.split('/').pop()?.split('.').pop() || '';
+      return aBasename.localeCompare(bBasename) || aExtension.localeCompare(bExtension);
+    });
     
-    for (const file of filesToRename) {
-      // Check if we should stop
-      const currentState = getState() as { files: FilesState };
-      if (currentState.files.shouldStopAnalysis) {
-        break;
-      }
-      
-      try {
-        // Update progress
-        dispatch(setRenameProgress({
-          total: filesToRename.length,
-          processed: processedCount,
-          failed: failedCount,
-          currentFile: file.currentPath.split('/').pop() || file.id
-        }));
-        
-        // Rename individual file
-        const response = await fetch('/api/rename-file', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: file.id }),
-        });
-        
-        if (response.ok) {
-          processedCount++;
-          // Refresh state after each successful rename to show real-time progress
-          dispatch(fetchFiles());
-        } else {
-          failedCount++;
-          console.warn(`Failed to rename file ${file.currentPath}:`, await response.text());
-          // Also refresh state after failed rename to show updated status
-          dispatch(fetchFiles());
-        }
-        
-        // Small delay to prevent overwhelming the server
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-      } catch (error) {
-        failedCount++;
-        console.error(`Error renaming file ${file.currentPath}:`, error);
-        // Refresh state after error to show updated status
-        dispatch(fetchFiles());
-      }
+    // Check if we should stop before starting
+    const currentState = getState() as { files: FilesState };
+    if (currentState.files.shouldStopAnalysis) {
+      throw new Error('Operation cancelled');
     }
     
-    // Final progress update
+    // Update initial progress
     dispatch(setRenameProgress({
-      total: filesToRename.length,
-      processed: processedCount,
-      failed: failedCount,
-      currentFile: null
+      total: sortedFilesToRename.length,
+      processed: 0,
+      failed: 0,
+      currentFile: 'Processing...'
     }));
     
-    // Final fetch to ensure we have the latest state
-    dispatch(fetchFiles());
+    // Collect all file IDs in sorted order
+    const fileIds = sortedFilesToRename.map(file => file.id);
     
-    return {
-      total: filesToRename.length,
-      processed: processedCount,
-      failed: failedCount
-    };
+    try {
+      // Make single batch API call
+      const response = await fetch('/api/rename-files-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: fileIds }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Batch rename failed');
+      }
+      
+      const result = await response.json();
+      
+      // Update final progress
+      dispatch(setRenameProgress({
+        total: result.total,
+        processed: result.successful,
+        failed: result.failed,
+        currentFile: null
+      }));
+      
+      // Return results with file data for immediate state update
+      // State will be updated in the reducer, no need for fetchFiles
+      return {
+        total: result.total,
+        processed: result.successful,
+        failed: result.failed,
+        results: result.results // Include results with file data
+      };
+    } catch (error) {
+      // Update progress with error
+      dispatch(setRenameProgress({
+        total: sortedFilesToRename.length,
+        processed: 0,
+        failed: sortedFilesToRename.length,
+        currentFile: null
+      }));
+      
+      throw error;
+    }
   }
 );
+
+// Helper function to update a file in state
+function updateFileInState(state: FilesState, updatedFile: FileInfo): void {
+  const index = state.files.findIndex(f => f.id === updatedFile.id);
+  if (index !== -1) {
+    state.files[index] = updatedFile;
+    // Also update currentRecord if it's the same file
+    if (state.currentRecord?.id === updatedFile.id) {
+      state.currentRecord = updatedFile;
+    }
+  }
+}
+
+// Helper function to remove files from state by IDs
+function removeFilesFromState(state: FilesState, fileIds: string[]): void {
+  state.files = state.files.filter(f => !fileIds.includes(f.id));
+  // Clear currentRecord if it was removed
+  if (state.currentRecord && fileIds.includes(state.currentRecord.id)) {
+    state.currentRecord = null;
+  }
+}
 
 const filesSlice = createSlice({
   name: 'files',
@@ -480,7 +546,61 @@ const filesSlice = createSlice({
       })
       .addCase(fetchFiles.fulfilled, (state, action) => {
         state.loading = false;
-        state.files = action.payload;
+        const { files, isIncremental } = action.payload;
+        
+        // Store current record ID before updating files
+        const currentRecordId = state.currentRecord?.id;
+        
+        if (isIncremental) {
+          // Merge changes: update existing files or add new ones
+          const filesMap = new Map(state.files.map(f => [f.id, f]));
+          files.forEach((file) => {
+            filesMap.set(file.id, file);
+          });
+          state.files = Array.from(filesMap.values());
+        } else {
+          // Initial load: replace entire list
+          state.files = files;
+        }
+        
+        // Update currentRecord if it still exists in the files list
+        // Preserve analysis data if currentRecord has it and the updated record doesn't
+        // This ensures we show the latest analysis results during analyzeAll operations
+        if (currentRecordId) {
+          const updatedRecord = state.files.find(f => f.id === currentRecordId);
+          if (updatedRecord) {
+            // Prefer the version with analysis data, or the one with newer lastModified
+            const currentHasData = state.currentRecord?.data && state.currentRecord.status === 'analyzed';
+            const updatedHasData = updatedRecord.data && updatedRecord.status === 'analyzed';
+            
+            if (currentHasData && !updatedHasData && state.currentRecord) {
+              // Current record has analysis data but updated doesn't - preserve it
+              state.currentRecord = {
+                ...updatedRecord,
+                data: state.currentRecord.data,
+                documentType: state.currentRecord.documentType,
+                status: state.currentRecord.status,
+              };
+            } else if (updatedHasData && !currentHasData) {
+              // Updated record has analysis data but current doesn't - use updated
+              state.currentRecord = updatedRecord;
+            } else if (currentHasData && updatedHasData) {
+              // Both have data - prefer the one with newer lastModified, or keep current if equal
+              const currentModified = state.currentRecord?.lastModified || state.currentRecord?.timestamp || '';
+              const updatedModified = updatedRecord.lastModified || updatedRecord.timestamp || '';
+              if (updatedModified > currentModified) {
+                state.currentRecord = updatedRecord;
+              }
+              // Otherwise keep currentRecord as is (it's already set)
+            } else {
+              // Neither has data, or both are in same state - use updated record
+              state.currentRecord = updatedRecord;
+            }
+          }
+        }
+        
+        // Update last fetch time
+        state.lastFetchTime = new Date().toISOString();
       })
       .addCase(fetchFiles.rejected, (state, action) => {
         state.loading = false;
@@ -506,7 +626,10 @@ const filesSlice = createSlice({
       })
       .addCase(renameFile.fulfilled, (state, action) => {
         state.loading = false;
-        // Files will be updated by the fetchFiles call
+        // Update file immediately if returned in response
+        if (action.payload?.file) {
+          updateFileInState(state, action.payload.file);
+        }
       })
       .addCase(renameFile.rejected, (state, action) => {
         state.loading = false;
@@ -535,7 +658,13 @@ const filesSlice = createSlice({
         state.loading = false;
         state.isAnalyzingSingle = false;
         state.analyzingSingleFile = null;
-        // Files will be updated by the fetchFiles call
+        
+        // Update the file in state immediately with the result
+        if (action.payload?.data) {
+          updateFileInState(state, action.payload.data);
+          // Always set the analyzed file as the current record to show it in the preview
+          state.currentRecord = action.payload.data;
+        }
       })
       .addCase(analyzeFile.rejected, (state, action) => {
         state.loading = false;
@@ -550,7 +679,10 @@ const filesSlice = createSlice({
       })
       .addCase(updateFileData.fulfilled, (state, action) => {
         state.loading = false;
-        // Files will be updated by the fetchFiles call
+        // Update file immediately if returned in response (PUT /api/records returns the file)
+        if (action.payload) {
+          updateFileInState(state, action.payload);
+        }
       })
       .addCase(updateFileData.rejected, (state, action) => {
         state.loading = false;
@@ -615,19 +747,19 @@ const filesSlice = createSlice({
         state.error = null;
         state.isAnalyzingAll = true;
         state.shouldStopAnalysis = false;
-        state.analysisProgress = { current: 0, total: 0, currentFile: '' };
+        state.analysisProgress = { total: 0, processed: 0, failed: 0, currentFile: null };
       })
       .addCase(analyzeAll.fulfilled, (state) => {
         state.loading = false;
         state.isAnalyzingAll = false;
         state.shouldStopAnalysis = false;
-        state.analysisProgress = { current: 0, total: 0, currentFile: '' };
+        state.analysisProgress = { total: 0, processed: 0, failed: 0, currentFile: null };
       })
       .addCase(analyzeAll.rejected, (state, action) => {
         state.loading = false;
         state.isAnalyzingAll = false;
         state.shouldStopAnalysis = false;
-        state.analysisProgress = { current: 0, total: 0, currentFile: '' };
+        state.analysisProgress = { total: 0, processed: 0, failed: 0, currentFile: null };
         state.error = action.error.message || 'Analyze all failed';
       })
       // Stop analysis
@@ -649,17 +781,26 @@ const filesSlice = createSlice({
         state.loading = true;
         state.error = null;
         state.isRenamingAll = true;
-        state.renameProgress = { current: 0, total: 0, currentFile: '' };
+        state.renameProgress = { total: 0, processed: 0, failed: 0, currentFile: null };
       })
-      .addCase(renameAll.fulfilled, (state) => {
+      .addCase(renameAll.fulfilled, (state, action) => {
         state.loading = false;
         state.isRenamingAll = false;
-        state.renameProgress = { current: 0, total: 0, currentFile: '' };
+        state.renameProgress = { total: 0, processed: 0, failed: 0, currentFile: null };
+        
+        // Update files immediately from batch results
+        if (action.payload?.results) {
+          for (const result of action.payload.results) {
+            if (result.success && result.file) {
+              updateFileInState(state, result.file);
+            }
+          }
+        }
       })
       .addCase(renameAll.rejected, (state, action) => {
         state.loading = false;
         state.isRenamingAll = false;
-        state.renameProgress = { current: 0, total: 0, currentFile: '' };
+        state.renameProgress = { total: 0, processed: 0, failed: 0, currentFile: null };
         state.error = action.error.message || 'Rename all failed';
       })
       // Merge files
@@ -667,9 +808,16 @@ const filesSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(mergeFiles.fulfilled, (state) => {
+      .addCase(mergeFiles.fulfilled, (state, action) => {
         state.loading = false;
-        // Files will be updated by the fetchFiles call
+        // Remove deleted files and add merged file immediately
+        if (action.payload?.deletedFileIds) {
+          removeFilesFromState(state, action.payload.deletedFileIds);
+        }
+        if (action.payload?.mergedFile) {
+          // Add the merged file to state
+          state.files.push(action.payload.mergedFile);
+        }
       })
       .addCase(mergeFiles.rejected, (state, action) => {
         state.loading = false;

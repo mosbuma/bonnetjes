@@ -6,7 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class FileService {
   private logger: Logger;
-  private readonly SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
+  // Supported extensions (case-insensitive - we normalize to lowercase for comparison)
+  private readonly SUPPORTED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -36,6 +37,8 @@ export class FileService {
           this.logger.debug(`Scanning subfolder: ${fullPath}`);
           await this.scanFolder(fullPath, files);
         } else if (entry.isFile()) {
+          // Normalize extension to lowercase for case-insensitive matching
+          // This handles .JPG, .PNG, .PDF, etc. the same as .jpg, .png, .pdf
           const ext = path.extname(entry.name).toLowerCase();
           if (this.SUPPORTED_EXTENSIONS.includes(ext)) {
             this.logger.debug(`Found supported file: ${fullPath}`);

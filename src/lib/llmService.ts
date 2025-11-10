@@ -102,8 +102,10 @@ export class LlmService {
 
 First, determine if this is an invoice, a movie cover, or a generic document. Then, extract and return the following fields in JSON format:
 
+For all documents, if there is no information on the page, add "blank" to the description field.
+
 {
-  "document_type": "invoice" | "movie_cover" | "generic",
+  "document_type": "invoice" | "movie_cover" | "generic" | "rekeningafschrift",
   "extraction_status": "success" | "partial" | "failed",
   "confidence": "low" | "medium" | "high",
   "fields": {
@@ -135,7 +137,24 @@ First, determine if this is an invoice, a movie cover, or a generic document. Th
     // always include the year of the jaaropgave in the document category field (e.g. "Jaaropgave 2024")
 
     // for documents relating to belastingaangiften:
-    // try to extract the year that the belastingaangifte is for and include this in the document category field (e.g. "Aangifte 2024")
+    try to extract the year that the belastingaangifte is for and include this in the document category field (e.g. "Aangifte 2024")
+
+    // for postcards (one side is a picture, the other side has an area for a message and space for the recipient's address)
+    set the document category to "postcard" or "blank postcard"
+    try to extract the sender and recipient from the message on the postcard and make a description "from <sender> to <recipient>"
+    if there is no address area, it may be a birthday card, set the document category to "birthday card". Postcards never have a fold, birthday cards can. On a birthday card, the recipient's name is often in the first line of the message.
+
+    // for rekeningafschriften:
+    set the document category to "rekeningafschrift"
+    try to extract datum afschrift, page number, number of pages, bank account number and account holder name from the bankafschrift and include this in the document description field (e.g. "Bankafschrift accountnumber 20251021 (1 of 2) - account holder")    
+    "bank_account_number": "Bank account number",
+    "account_holder_name": "Account holder name",
+    "page_number": "Page number",
+    "number_of_pages": "Number of pages",
+    "document_date": "YYYYMMDD",
+    "document_category": "Category of the document (e.g. contract, brief, rapport, factuur, offerte, aangifte, etc.)",
+    "description": "Short document description. Try to be concise, but include all important information.",
+    "source": "Organization or person that created the document, try to find this in the header, title etcetera",
   }
 }`;
 
@@ -271,6 +290,16 @@ First, determine if this is an invoice, a movie cover, or a generic document. Th
             };
             break;
 
+          case DocumentType.REKENINGAFSCHRIFT:
+            result = {
+              document_date: fields.document_date || '',
+              document_category: fields.document_category || '',
+              description: fields.description || '',
+              extraction_status: item.extraction_status || 'partial',
+              confidence: item.confidence || 'low',
+              source: fields.source || ''
+            };
+            break;
           case DocumentType.GENERIC:
             result = {
               document_date: fields.document_date || '',

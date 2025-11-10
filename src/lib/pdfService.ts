@@ -10,17 +10,18 @@ export class PdfService {
     this.logger = logger;
   }
 
-  async convertPdfToImages(pdfPath: string): Promise<string[]> {
+  async convertPdfToImages(pdfPath: string, useJPG: boolean=true): Promise<string[]> {
     const outputDir = path.join(path.dirname(pdfPath), 'temp_images');
     const outputPrefix = path.join(outputDir, path.basename(pdfPath, '.pdf'));
+    const imgtype= useJPG ? 'jpg': 'png';
 
     try {
       await fs.mkdir(outputDir, { recursive: true });
 
       return new Promise((resolve, reject) => {
         const pdftoppm = spawn('pdftoppm', [
-          '-png',
-          '-r', '300',
+          useJPG ? '-jpeg': '-png',
+          '-r', useJPG ?'300':'300',
           pdfPath,
           outputPrefix
         ]);
@@ -37,10 +38,10 @@ export class PdfService {
           if (code === 0) {
             try {
               const files = await fs.readdir(outputDir);
-              const pngFiles = files
-                .filter(file => file.endsWith('.png'))
+              const imageFiles = files
+                .filter(file => file.endsWith('.'+imgtype))
                 .map(file => path.join(outputDir, file));
-              resolve(pngFiles);
+              resolve(imageFiles);
             } catch (error) {
               reject(error);
             }

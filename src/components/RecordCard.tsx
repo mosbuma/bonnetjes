@@ -29,6 +29,8 @@ const RecordCard: React.FC<RecordCardProps> = ({
     switch (documentType) {
       case DocumentType.INVOICE:
         return ['invoice_date', 'company_name', 'description', 'invoice_currency', 'invoice_amount'];
+      case DocumentType.REKENINGAFSCHRIFT:
+        return ['document_date', 'document_category', 'description', 'source', 'bank_account_number', 'account_holder_name', 'page_number', 'number_of_pages'];
       case DocumentType.GENERIC:
         return ['document_date', 'document_category', 'description', 'source'];
       case DocumentType.MOVIE_COVER:
@@ -65,7 +67,8 @@ const RecordCard: React.FC<RecordCardProps> = ({
     setIsAnalyzing(true);
     
     try {
-      await dispatch(analyzeFile({ id: record.id, forceReanalyze: true })).unwrap();
+      // Check cache first - only force reanalyze if explicitly requested
+      await dispatch(analyzeFile({ id: record.id, forceReanalyze: false })).unwrap();
     } catch (error) {
       console.error('Error analyzing file:', error);
       alert('Error analyzing file: ' + (error instanceof Error ? error.message : 'Unknown error'));

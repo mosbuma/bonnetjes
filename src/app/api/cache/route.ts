@@ -17,6 +17,8 @@ async function initializeCache() {
 export async function GET() {
   try {
     await initializeCache();
+    // Reload cache from disk to ensure we have the latest stats
+    await cacheService.refreshCache();
     const stats = cacheService.getCacheStats();
     return NextResponse.json(stats);
   } catch (error) {

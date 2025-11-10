@@ -16,10 +16,41 @@ const FileViewer: React.FC<FileViewerProps> = ({ record }) => {
     error?: string;
     isLoading?: boolean;
   }>({ type: 'none', data: null });
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+  const [previousImageData, setPreviousImageData] = useState<string | null>(null);
+  const [fadeOutOpacity, setFadeOutOpacity] = useState(1);
+
+  // Handle fade-out animation
+  useEffect(() => {
+    if (isFadingOut && previousImageData) {
+      // Start fade-out: trigger opacity change from 1 to 0
+      setFadeOutOpacity(1);
+      // Use requestAnimationFrame to ensure the initial opacity is set before transition
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          setFadeOutOpacity(0);
+        }, 10);
+      });
+    }
+  }, [isFadingOut, previousImageData]);
 
   useEffect(() => {
     const loadPreview = async (path: string) => {
+      // If we have a current image, fade it out first
+      if (previewContent.type === 'image' && previewContent.data) {
+        setIsFadingOut(true);
+        setPreviousImageData(previewContent.data);
+        setFadeOutOpacity(1);
+        // Wait for fade-out animation to complete (300ms)
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setIsFadingOut(false);
+        setPreviousImageData(null);
+        setFadeOutOpacity(1);
+      }
+      
       setPreviewContent({ type: 'none', data: null, isLoading: true });
+      setImageLoaded(false); // Reset image loaded state for fade-in
       
       try {
         const ext = path.split('.').pop()?.toLowerCase();
@@ -44,8 +75,24 @@ const FileViewer: React.FC<FileViewerProps> = ({ record }) => {
     if (record) {
       loadPreview(record.currentPath);
     } else {
-      setPreviewContent({ type: 'none', data: null });
+      // Fade out current image if clearing
+      if (previewContent.type === 'image' && previewContent.data) {
+        setIsFadingOut(true);
+        setPreviousImageData(previewContent.data);
+        setFadeOutOpacity(1);
+        setTimeout(() => {
+          setIsFadingOut(false);
+          setPreviousImageData(null);
+          setPreviewContent({ type: 'none', data: null });
+          setImageLoaded(false);
+          setFadeOutOpacity(1);
+        }, 300);
+      } else {
+        setPreviewContent({ type: 'none', data: null });
+        setImageLoaded(false);
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record]);
 
   const loadPdfPreview = async (path: string) => {
@@ -113,11 +160,12 @@ const FileViewer: React.FC<FileViewerProps> = ({ record }) => {
       );
     }
 
-    if (previewContent.type === 'image' && previewContent.data) {
+    // Show previous image fading out
+    if (isFadingOut && previousImageData) {
       return (
         <div className="text-center p-3">
           <Image 
-            src={previewContent.data} 
+            src={previousImageData} 
             alt="Preview" 
             width={800}
             height={600}
@@ -126,9 +174,39 @@ const FileViewer: React.FC<FileViewerProps> = ({ record }) => {
               maxHeight: '80vh',
               height: 'auto',
               border: '1px solid #dee2e6',
-              borderRadius: '4px'
+              borderRadius: '4px',
+              opacity: fadeOutOpacity,
+              transition: 'opacity 0.3s ease-out'
             }}
             unoptimized
+            key="fading-out"
+          />
+        </div>
+      );
+    }
+
+    if (previewContent.type === 'image' && previewContent.data) {
+      return (
+        <div className="text-center p-3">
+          <Image 
+            src={previewContent.data} 
+            alt="Preview" 
+            width={800}
+            height={600}
+            className={imageLoaded ? 'image-fade-in' : 'image-loading'}
+            style={{ 
+              maxWidth: '100%', 
+              maxHeight: '80vh',
+              height: 'auto',
+              border: '1px solid #dee2e6',
+              borderRadius: '4px',
+              opacity: imageLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease-in'
+            }}
+            unoptimized
+            onLoad={() => {
+              setImageLoaded(true);
+            }}
             onError={() => {
               setPreviewContent({ 
                 type: 'none', 
