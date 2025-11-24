@@ -11,11 +11,36 @@ interface HeaderProps {
   onSearchChange: (text: string) => void;
   onStatusFilterChange: (filter: 'all' | 'new' | 'analyzed' | 'bad') => void;
   onOperationStart?: (operationName: string) => void;
+  isMergeMode: boolean;
+  onMergeModeToggle: () => void;
+  selectedFileIds: Set<string>;
+  onMerge: () => void;
+  onSelectAll: () => void;
+  onSelectNone: () => void;
+  onRotateLeft: () => void;
+  onRotateRight: () => void;
+  onCancelMerge: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onScan, searchText, statusFilter, onSearchChange, onStatusFilterChange, onOperationStart }) => {
+const Header: React.FC<HeaderProps> = ({ 
+  onScan, 
+  searchText, 
+  statusFilter, 
+  onSearchChange, 
+  onStatusFilterChange, 
+  onOperationStart,
+  isMergeMode,
+  onMergeModeToggle,
+  selectedFileIds,
+  onMerge,
+  onSelectAll,
+  onSelectNone,
+  onRotateLeft,
+  onRotateRight,
+  onCancelMerge
+}) => {
   const dispatch = useAppDispatch();
-  const { loading, isAnalyzingAll, shouldStopAnalysis, analysisProgress, isAnalyzingSingle, analyzingSingleFile, isRenamingAll, renameProgress } = useAppSelector((state) => state.files);
+  const { loading, isAnalyzingAll, shouldStopAnalysis, analysisProgress, isAnalyzingSingle, analyzingSingleFile, isRenamingAll, renameProgress, files } = useAppSelector((state) => state.files);
   const [cacheStats, setCacheStats] = useState<{ total: number; lastUpdated: string } | null>(null);
   const [privacyStatus, setPrivacyStatus] = useState<{ isSharedData: boolean; privacyMode: 'shared' | 'private' } | null>(null);
 
@@ -73,6 +98,31 @@ const Header: React.FC<HeaderProps> = ({ onScan, searchText, statusFilter, onSea
         } else {
           const data = await response.json();
           alert(`Error: ${data.error || 'Failed to clear cache'}`);
+        }
+      } catch (error) {
+        alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  };
+
+  const handleRemovePdfFilesFromCache = async () => {
+    if (confirm('Are you sure you want to remove PDF files from the analysis cache that were analyzed after November 21, 2025? This will force re-analysis of those PDF files only.')) {
+      try {
+        const response = await fetch('/api/cache', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'removePdfs' })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const message = `PDF files removed from cache successfully!\n\n` +
+            `Files removed: ${data.removedCount}\n` +
+            `Files remaining: ${data.remainingCount}`;
+          alert(message);
+          loadCacheStats(); // Refresh stats
+        } else {
+          const data = await response.json();
+          alert(`Error: ${data.error || 'Failed to remove PDF files from cache'}`);
         }
       } catch (error) {
         alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -258,75 +308,158 @@ const Header: React.FC<HeaderProps> = ({ onScan, searchText, statusFilter, onSea
             
             {/* Action Buttons */}
             <div className="scan-buttons">
-              <button
-                className="btn btn-outline-primary me-2"
-                onClick={onScan}
-              >
-                Import Files
-              </button>
-              
-              <button
-                className="btn btn-outline-primary me-2"
-                onClick={isAnalyzingAll ? handleStopAnalysis : handleAnalyzeAll}
-                disabled={isAnalyzingAll && shouldStopAnalysis}
-              >
-                {isAnalyzingAll ? 'Stop' : 'Analyze All'}
-              </button>
-              
-              <button
-                className="btn btn-outline-success me-2"
-                onClick={handleRenameAll}
-                disabled={isRenamingAll || loading}
-              >
-                Rename All
-              </button>
-              
-              <div className="col-md-3">
-                <div className="btn-group" role="group">
-                  <button 
-                    className="btn btn-warning" 
-                    onClick={handleCleanupNonExistent}
-                    disabled={loading}
+              {isMergeMode ? (
+                <>
+                  <button
+                    className="btn btn-outline-secondary me-2"
+                    onClick={onSelectAll}
+                    title="Select All Image Files"
                   >
-                    Remove Non-Existent Files
+                    ☑ Select All
                   </button>
-                  <button 
-                    className="btn btn-danger" 
-                    onClick={handleClearState}
-                    disabled={loading}
+                  <button
+                    className="btn btn-outline-secondary me-2"
+                    onClick={onSelectNone}
+                    disabled={selectedFileIds.size === 0}
+                    title="Deselect All Files"
                   >
-                    Clear State
+                    ☐ Select None
                   </button>
-                  <button 
-                    className="btn btn-secondary" 
-                    onClick={handleCleanNotAnalyzed}
-                    disabled={loading}
+                  <button
+                    className="btn btn-outline-primary me-2"
+                    onClick={onRotateLeft}
+                    disabled={
+                      selectedFileIds.size === 0 ||
+                      Array.from(selectedFileIds).some(id => {
+                        const file = files.find(f => f.id === id);
+                        return !file || file.type !== 'image';
+                      })
+                    }
+                    title="Rotate Left (90° counterclockwise)"
                   >
-                    Clean Not Analyzed
+                    ↺ Rotate Left
                   </button>
-                  <button 
-                    className="btn btn-info" 
-                    onClick={handleResetBadFiles}
-                    disabled={loading}
+                  <button
+                    className="btn btn-outline-primary me-2"
+                    onClick={onRotateRight}
+                    disabled={
+                      selectedFileIds.size === 0 ||
+                      Array.from(selectedFileIds).some(id => {
+                        const file = files.find(f => f.id === id);
+                        return !file || file.type !== 'image';
+                      })
+                    }
+                    title="Rotate Right (90° clockwise)"
                   >
-                    Reset Bad Files
+                    ↻ Rotate Right
                   </button>
-                  <button 
-                    className="btn btn-outline-secondary" 
-                    onClick={handleRemoveRenamedFiles}
-                    disabled={loading}
+                  <button
+                    className="btn btn-primary me-2"
+                    onClick={onMerge}
+                    disabled={
+                      selectedFileIds.size < 2 ||
+                      Array.from(selectedFileIds).some(id => {
+                        const file = files.find(f => f.id === id);
+                        return !file || file.type !== 'image';
+                      })
+                    }
                   >
-                    Remove Renamed Files
+                    Merge
                   </button>
-                  <button 
-                    className="btn btn-outline-secondary" 
-                    onClick={handleClearCache}
-                    disabled={loading}
+                  <button
+                    className="btn btn-outline-secondary me-2"
+                    onClick={onCancelMerge}
                   >
-                    Clear Cache
+                    Cancel
                   </button>
-                </div>
-              </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="btn btn-outline-primary me-2"
+                    onClick={onScan}
+                  >
+                    Import Files
+                  </button>
+                  
+                  <button
+                    className="btn btn-outline-primary me-2"
+                    onClick={isAnalyzingAll ? handleStopAnalysis : handleAnalyzeAll}
+                    disabled={isAnalyzingAll && shouldStopAnalysis}
+                  >
+                    {isAnalyzingAll ? 'Stop' : 'Analyze All'}
+                  </button>
+                  
+                  <button
+                    className="btn btn-outline-success me-2"
+                    onClick={handleRenameAll}
+                    disabled={isRenamingAll || loading}
+                  >
+                    Rename All
+                  </button>
+                  
+                  <button
+                    className="btn btn-outline-info me-2"
+                    onClick={onMergeModeToggle}
+                  >
+                    Merge Mode
+                  </button>
+                  
+                  <div className="col-md-3">
+                    <div className="btn-group" role="group">
+                      <button 
+                        className="btn btn-warning" 
+                        onClick={handleCleanupNonExistent}
+                        disabled={loading}
+                      >
+                        Remove Non-Existent Files
+                      </button>
+                      <button 
+                        className="btn btn-danger" 
+                        onClick={handleClearState}
+                        disabled={loading}
+                      >
+                        Clear State
+                      </button>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={handleCleanNotAnalyzed}
+                        disabled={loading}
+                      >
+                        Clean Not Analyzed
+                      </button>
+                      <button 
+                        className="btn btn-info" 
+                        onClick={handleResetBadFiles}
+                        disabled={loading}
+                      >
+                        Reset Bad Files
+                      </button>
+                      <button 
+                        className="btn btn-outline-secondary" 
+                        onClick={handleRemoveRenamedFiles}
+                        disabled={loading}
+                      >
+                        Remove Renamed Files
+                      </button>
+                      <button 
+                        className="btn btn-outline-secondary" 
+                        onClick={handleClearCache}
+                        disabled={loading}
+                      >
+                        Clear Cache
+                      </button>
+                      <button 
+                        className="btn btn-outline-warning" 
+                        onClick={handleRemovePdfFilesFromCache}
+                        disabled={loading}
+                      >
+                        Remove PDFs from Cache
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

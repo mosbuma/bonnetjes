@@ -236,15 +236,13 @@ export const removeRenamedFiles = createAsyncThunk(
 
 export const mergeFiles = createAsyncThunk(
   'files/mergeFiles',
-  async ({ currentFileId, targetFileId, mergeDirection }: {
-    currentFileId: string;
-    targetFileId: string;
-    mergeDirection: 'prev' | 'next';
+  async ({ fileIds }: {
+    fileIds: string[];
   }, { dispatch }) => {
     const response = await fetch('/api/merge-files', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentFileId, targetFileId, mergeDirection }),
+      body: JSON.stringify({ fileIds }),
     });
     if (!response.ok) {
       const data = await response.json();
@@ -252,6 +250,27 @@ export const mergeFiles = createAsyncThunk(
     }
     
     // Return response - file data will be used to update state immediately
+    const result = await response.json();
+    return result;
+  }
+);
+
+export const rotateImages = createAsyncThunk(
+  'files/rotateImages',
+  async ({ fileIds, direction }: {
+    fileIds: string[];
+    direction: 'left' | 'right';
+  }, { dispatch }) => {
+    const response = await fetch('/api/rotate-images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileIds, direction }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Rotate images failed');
+    }
+    
     const result = await response.json();
     return result;
   }
@@ -822,6 +841,20 @@ const filesSlice = createSlice({
       .addCase(mergeFiles.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Merge files failed';
+      })
+
+      // Rotate images
+      .addCase(rotateImages.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(rotateImages.fulfilled, (state) => {
+        state.loading = false;
+        // Files are updated in place, no state changes needed
+      })
+      .addCase(rotateImages.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Rotate images failed';
       });
   },
 });

@@ -150,6 +150,35 @@ export class CacheService {
     this.logger.info('Analysis cache cleared');
   }
 
+  async removePdfFilesFromCache(minDate?: string): Promise<number> {
+    const initialCount = this.cache.cachedResults.length;
+    const minDateObj = minDate ? new Date(minDate) : null;
+    
+    this.cache.cachedResults = this.cache.cachedResults.filter(
+      result => {
+        // Keep non-PDF files
+        if (!result.originalPath.toLowerCase().endsWith('.pdf')) {
+          return true;
+        }
+        
+        // Remove PDF files that were analyzed after the minimum date (if specified)
+        if (minDateObj) {
+          const resultDate = new Date(result.timestamp);
+          return resultDate <= minDateObj;
+        }
+        
+        // If no date filter, remove all PDFs (backward compatibility)
+        return false;
+      }
+    );
+    
+    const removedCount = initialCount - this.cache.cachedResults.length;
+    await this.saveCache();
+    const dateFilter = minDate ? ` analyzed after ${minDate}` : '';
+    this.logger.info(`Removed ${removedCount} PDF files from cache${dateFilter}`);
+    return removedCount;
+  }
+
   getCacheStats(): { total: number; lastUpdated: string } {
     return {
       total: this.cache.cachedResults.length,

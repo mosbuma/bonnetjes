@@ -19,49 +19,59 @@ async function initializeState() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { currentFileId, targetFileId, mergeDirection } = await req.json();
+    const { fileIds } = await req.json();
     
-    if (!currentFileId || !targetFileId || !mergeDirection) {
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length < 2) {
       return NextResponse.json({ 
-        error: 'Missing required parameters: currentFileId, targetFileId, mergeDirection' 
+        error: 'Missing or invalid fileIds parameter. Must be an array with at least 2 file IDs.' 
       }, { status: 400 });
     }
 
     await initializeState();
     
-    const currentFile = stateService.getFileById(currentFileId);
-    const targetFile = stateService.getFileById(targetFileId);
+    // Get all files by IDs
+    const files = fileIds.map(id => stateService.getFileById(id)).filter(Boolean);
     
-    if (!currentFile || !targetFile) {
-      return NextResponse.json({ error: 'One or both files not found' }, { status: 404 });
+    if (files.length !== fileIds.length) {
+      return NextResponse.json({ error: 'One or more files not found' }, { status: 404 });
+    }
+
+    // Validate all files are image files
+    const nonImageFiles = files.filter(f => f.type !== 'image');
+    if (nonImageFiles.length > 0) {
+      return NextResponse.json({ 
+        error: 'All files must be image files. Non-image files found.' 
+      }, { status: 400 });
     }
 
     // Check if files exist on disk
     try {
-      await fs.access(currentFile.currentPath);
-      await fs.access(targetFile.currentPath);
+      for (const file of files) {
+        await fs.access(file.currentPath);
+      }
     } catch {
-      return NextResponse.json({ error: 'One or both files do not exist on disk' }, { status: 404 });
+      return NextResponse.json({ error: 'One or more files do not exist on disk' }, { status: 404 });
     }
 
-    // Create merged PDF with logical order
-    const mergedPdfPath = await mergeFilesToPdf(currentFile.currentPath, targetFile.currentPath, currentFile.currentPath, mergeDirection);
+    // Get file paths in order
+    const filePaths = files.map(f => f.currentPath);
+    
+    // Create merged PDF - use first file's directory and name
+    const firstFile = files[0];
+    const mergedPdfPath = await mergeFilesToPdf(filePaths, firstFile.currentPath);
     
     // Rename original files to _delete_ format
-    const currentDir = path.dirname(currentFile.currentPath);
-    const currentExt = path.extname(currentFile.currentPath);
-    const currentBase = path.basename(currentFile.currentPath, currentExt);
-    const targetExt = path.extname(targetFile.currentPath);
-    const targetBase = path.basename(targetFile.currentPath, targetExt);
+    const deletePaths: string[] = [];
+    for (const file of files) {
+      const fileDir = path.dirname(file.currentPath);
+      const fileExt = path.extname(file.currentPath);
+      const fileBase = path.basename(file.currentPath, fileExt);
+      const deletePath = path.join(fileDir, `_delete_${fileBase}${fileExt}`);
+      await fs.rename(file.currentPath, deletePath);
+      deletePaths.push(deletePath);
+    }
     
-    const currentDeletePath = path.join(currentDir, `_delete_${currentBase}${currentExt}`);
-    const targetDeletePath = path.join(currentDir, `_delete_${targetBase}${targetExt}`);
-    
-    // Rename files
-    await fs.rename(currentFile.currentPath, currentDeletePath);
-    await fs.rename(targetFile.currentPath, targetDeletePath);
-    
-    // Update state - remove both original files and add the merged file
+    // Update state - remove all original files and add the merged file
     const mergedFileId = generateId();
     const mergedFile = {
       id: mergedFileId,
@@ -74,8 +84,9 @@ export async function POST(req: NextRequest) {
     };
     
     // Remove original files from state
-    stateService.removeFileById(currentFileId);
-    stateService.removeFileById(targetFileId);
+    for (const fileId of fileIds) {
+      stateService.removeFileById(fileId);
+    }
     
     // Add merged file to state
     await stateService.createFileInfo(mergedFile, false); // Don't save immediately
@@ -85,14 +96,14 @@ export async function POST(req: NextRequest) {
     // Save the updated state
     await stateService.saveState();
     
-    logger.info(`Successfully merged files: ${currentFile.currentPath} + ${targetFile.currentPath} -> ${mergedPdfPath}`);
+    logger.info(`Successfully merged ${files.length} files into: ${mergedPdfPath}`);
     
     return NextResponse.json({ 
       success: true, 
       mergedFilePath: mergedPdfPath,
       mergedFile: savedMergedFile || mergedFile, // Return the merged file for immediate state update
-      deletedFileIds: [currentFileId, targetFileId], // Return IDs of deleted files
-      deletedFiles: [currentDeletePath, targetDeletePath]
+      deletedFileIds: fileIds, // Return IDs of deleted files
+      deletedFiles: deletePaths
     });
     
   } catch (error) {
@@ -104,7 +115,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function mergeFilesToPdf(file1Path: string, file2Path: string, currentFilePath: string, mergeDirection: string): Promise<string> {
+async function mergeFilesToPdf(filePaths: string[], outputFilePath: string): Promise<string> {
   const pdfDoc = await PDFDocument.create();
   
   // Helper function to add image to PDF
@@ -130,60 +141,23 @@ async function mergeFilesToPdf(file1Path: string, file2Path: string, currentFile
     });
   }
   
-  // Helper function to add PDF to PDF
-  async function addPdfToPdf(pdfPath: string) {
-    const pdfBytes = await fs.readFile(pdfPath);
-    const pdf = await PDFDocument.load(pdfBytes);
-    const pages = await pdfDoc.embedPdf(pdf);
-    
-    for (let i = 0; i < pages.length; i++) {
-      const page = pdfDoc.addPage();
-      page.drawPage(pages[i]);
-    }
+  // Process all files in order (all should be images based on validation)
+  for (const filePath of filePaths) {
+    await addImageToPdf(filePath);
   }
   
-  // Helper function to process a file
-  async function processFile(filePath: string) {
-    const ext = path.extname(filePath).toLowerCase();
-    if (ext === '.pdf') {
-      await addPdfToPdf(filePath);
-    } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
-      await addImageToPdf(filePath);
-    } else {
-      throw new Error(`Unsupported file format: ${ext}`);
-    }
-  }
-  
-  // Determine file order based on merge direction
-  let firstFile: string;
-  let secondFile: string;
-  
-  if (mergeDirection === 'prev') {
-    // Merge prev: previous doc first, then button doc
-    firstFile = file2Path;  // target file (previous)
-    secondFile = file1Path; // current file (button doc)
-  } else {
-    // Merge next: button doc first, then next doc
-    firstFile = file1Path;  // current file (button doc)
-    secondFile = file2Path; // target file (next)
-  }
-  
-  // Process files in logical order
-  await processFile(firstFile);
-  await processFile(secondFile);
-  
-  // Save merged PDF with the current file's name
+  // Save merged PDF with the first file's name
   const mergedPdfBytes = await pdfDoc.save();
-  const outputDir = path.dirname(currentFilePath);
-  const currentBase = path.basename(currentFilePath, path.extname(currentFilePath));
-  const mergedPdfPath = path.join(outputDir, `${currentBase}.pdf`);
+  const outputDir = path.dirname(outputFilePath);
+  const outputBase = path.basename(outputFilePath, path.extname(outputFilePath));
+  const mergedPdfPath = path.join(outputDir, `${outputBase}.pdf`);
   
   await fs.writeFile(mergedPdfPath, mergedPdfBytes);
   
-  // Preserve timestamps from the button document (current file)
+  // Preserve timestamps from the first file
   try {
-    const currentStats = await fs.stat(currentFilePath);
-    await fs.utimes(mergedPdfPath, currentStats.atime, currentStats.mtime);
+    const firstFileStats = await fs.stat(filePaths[0]);
+    await fs.utimes(mergedPdfPath, firstFileStats.atime, firstFileStats.mtime);
   } catch (error) {
     logger.warn(`Could not preserve timestamps for merged file: ${error}`);
   }

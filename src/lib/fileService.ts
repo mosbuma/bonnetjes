@@ -34,9 +34,20 @@ export class FileService {
         const fullPath = path.join(folder, entry.name);
 
         if (entry.isDirectory()) {
+          // Skip temp_images and temp_files directories (used for temporary processing files)
+          if (entry.name === 'temp_images' || entry.name === 'temp_files') {
+            this.logger.debug(`Skipping temp directory: ${fullPath}`);
+            continue;
+          }
           this.logger.debug(`Scanning subfolder: ${fullPath}`);
           await this.scanFolder(fullPath, files);
         } else if (entry.isFile()) {
+          // Skip files that start with _delete_ (marked for deletion)
+          if (entry.name.startsWith('_delete_')) {
+            this.logger.debug(`Skipping deleted file: ${fullPath}`);
+            continue;
+          }
+          
           // Normalize extension to lowercase for case-insensitive matching
           // This handles .JPG, .PNG, .PDF, etc. the same as .jpg, .png, .pdf
           const ext = path.extname(entry.name).toLowerCase();

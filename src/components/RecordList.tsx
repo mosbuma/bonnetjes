@@ -11,6 +11,9 @@ interface RecordListProps {
   onRecordSelect: (record: FileInfo) => void;
   onRecordUpdate: (record: FileInfo) => void;
   currentRecord: FileInfo | null;
+  isMergeMode: boolean;
+  selectedFileIds: Set<string>;
+  onFileSelectionChange: (fileId: string, isSelected: boolean) => void;
 }
 
 const ITEMS_PER_PAGE = 50;
@@ -21,7 +24,10 @@ const RecordList: React.FC<RecordListProps> = ({
   statusFilter,
   onRecordSelect, 
   onRecordUpdate, 
-  currentRecord 
+  currentRecord,
+  isMergeMode,
+  selectedFileIds,
+  onFileSelectionChange
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -99,6 +105,11 @@ const RecordList: React.FC<RecordListProps> = ({
                   (filtered from {records.length} total)
                 </span>
               )}
+              {isMergeMode && selectedFileIds.size > 0 && (
+                <span className="text-primary ms-2">
+                  ({selectedFileIds.size} selected)
+                </span>
+              )}
             </div>
             {totalPages > 1 && (
               <div className="d-flex gap-2 align-items-center">
@@ -131,6 +142,9 @@ const RecordList: React.FC<RecordListProps> = ({
               isSelected={currentRecord?.id === record.id}
               onSelect={onRecordSelect}
               onUpdate={onRecordUpdate}
+              isMergeMode={isMergeMode}
+              isSelectedForMerge={selectedFileIds.has(record.id)}
+              onMergeSelectionChange={onFileSelectionChange}
             />
           ))}
 

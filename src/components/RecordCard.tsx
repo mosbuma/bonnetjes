@@ -3,27 +3,31 @@
 import React, { useState } from 'react';
 import { FileInfo, DocumentData, DocumentType } from '@/types';
 import { generateFileName } from '@/lib/generic-tools';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { analyzeFile, renameFile, updateFileData, mergeFiles } from '@/store/slices/filesSlice';
+import { useAppDispatch } from '@/store/hooks';
+import { analyzeFile, renameFile, updateFileData } from '@/store/slices/filesSlice';
 
 interface RecordCardProps {
   record: FileInfo;
   isSelected: boolean;
   onSelect: (record: FileInfo) => void;
   onUpdate: (record: FileInfo) => void;
+  isMergeMode: boolean;
+  isSelectedForMerge: boolean;
+  onMergeSelectionChange: (fileId: string, isSelected: boolean) => void;
 }
 
 const RecordCard: React.FC<RecordCardProps> = ({ 
   record, 
   isSelected, 
   onSelect, 
-  onUpdate
+  onUpdate,
+  isMergeMode,
+  isSelectedForMerge,
+  onMergeSelectionChange
 }) => {
   const dispatch = useAppDispatch();
-  const { files } = useAppSelector((state) => state.files);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isMerging, setIsMerging] = useState(false);
 
   const getFieldsForDocumentType = (documentType: DocumentType): string[] => {
     switch (documentType) {
@@ -77,56 +81,9 @@ const RecordCard: React.FC<RecordCardProps> = ({
     }
   };
 
-  const handleMergeWithPrev = async (e: React.MouseEvent) => {
+  const handleMergeCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
-    const currentIndex = files.findIndex((f: FileInfo) => f.id === record.id);
-    if (currentIndex <= 0) {
-      alert('No previous file to merge with');
-      return;
-    }
-    
-    const prevFile = files[currentIndex - 1];
-    setIsMerging(true);
-    
-    try {
-      await dispatch(mergeFiles({
-        currentFileId: record.id,
-        targetFileId: prevFile.id,
-        mergeDirection: 'prev'
-      })).unwrap();
-      alert('Files merged successfully!');
-    } catch (error) {
-      console.error('Error merging files:', error);
-      alert('Error merging files: ' + (error instanceof Error ? error.message : 'Unknown error'));
-    } finally {
-      setIsMerging(false);
-    }
-  };
-
-  const handleMergeWithNext = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const currentIndex = files.findIndex((f: FileInfo) => f.id === record.id);
-    if (currentIndex >= files.length - 1) {
-      alert('No next file to merge with');
-      return;
-    }
-    
-    const nextFile = files[currentIndex + 1];
-    setIsMerging(true);
-    
-    try {
-      await dispatch(mergeFiles({
-        currentFileId: record.id,
-        targetFileId: nextFile.id,
-        mergeDirection: 'next'
-      })).unwrap();
-      alert('Files merged successfully!');
-    } catch (error) {
-      console.error('Error merging files:', error);
-      alert('Error merging files: ' + (error instanceof Error ? error.message : 'Unknown error'));
-    } finally {
-      setIsMerging(false);
-    }
+    onMergeSelectionChange(record.id, e.target.checked);
   };
 
   const handleAction = async (e: React.MouseEvent) => {
@@ -223,6 +180,16 @@ const RecordCard: React.FC<RecordCardProps> = ({
       onClick={() => onSelect(record)}
     >
       <div className="record-header">
+        {isMergeMode && (
+          <input
+            type="checkbox"
+            checked={isSelectedForMerge}
+            onChange={handleMergeCheckboxChange}
+            disabled={record.type !== 'image'}
+            onClick={(e) => e.stopPropagation()}
+            style={{ marginRight: '0.5rem' }}
+          />
+        )}
         <div className="title-container">
           <h3>{currentFilename}</h3>
           {isValidProposedFilename && (
@@ -284,34 +251,18 @@ const RecordCard: React.FC<RecordCardProps> = ({
         )}
         
         <div className="action-buttons">
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={handleAnalyze}
-            disabled={isAnalyzing || record.status === 'bad'}
-            title={record.status === 'bad' ? 'File marked as bad after failed analysis' : ''}
-          >
-            {isAnalyzing ? 'Analyzing...' : 'Analyze'}
-          </button>
+          {!isMergeMode && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || record.status === 'bad'}
+              title={record.status === 'bad' ? 'File marked as bad after failed analysis' : ''}
+            >
+              {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+            </button>
+          )}
           
-          <button
-            className="btn btn-info btn-sm"
-            onClick={handleMergeWithPrev}
-            disabled={isMerging || files.findIndex((f: FileInfo) => f.id === record.id) <= 0}
-            title="Merge with previous file"
-          >
-            {isMerging ? 'Merging...' : 'Merge Prev'}
-          </button>
-          
-          <button
-            className="btn btn-info btn-sm"
-            onClick={handleMergeWithNext}
-            disabled={isMerging || files.findIndex((f: FileInfo) => f.id === record.id) >= files.length - 1}
-            title="Merge with next file"
-          >
-            {isMerging ? 'Merging...' : 'Merge Next'}
-          </button>
-          
-          {shouldShowActionButton() && (
+          {!isMergeMode && shouldShowActionButton() && (
             <button
               className="btn btn-primary btn-sm btn-actionbutton"
               onClick={handleAction}

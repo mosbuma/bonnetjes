@@ -45,4 +45,5 @@ next-env.d.ts
 /state/*
 
 test-scans/
+temp_images/**/*
 

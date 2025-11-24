@@ -20,8 +20,9 @@ async function initializeState() {
 export async function GET(request: Request) {
   try {
     await initializeState();
-    // No need to refresh state on every read - state is already in memory
-    // Only refresh if we suspect it might be stale (e.g., after a long time)
+    // Reload state from disk to ensure we have the latest data
+    // This is important after operations like scan that modify the state file
+    await stateService.loadState();
     const files = stateService.getKnownFiles();
     
     // Check for 'since' query parameter
