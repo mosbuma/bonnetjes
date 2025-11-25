@@ -31,6 +31,8 @@ export async function POST(request: NextRequest) {
   
   try {
     await initializeServices();
+    // Always reload state from disk to ensure we have latest files (handles clear state + rescan)
+    await stateService.loadState();
     const { id, forceReanalyze = false } = await request.json();
     
     if (!id) {

@@ -28,6 +28,8 @@ async function initializeServices() {
 export async function POST(request: NextRequest) {
   try {
     await initializeServices();
+    // Reload latest state from disk each request so IDs match front-end after rescans
+    await stateService.loadState();
     const { ids, forceReanalyze = false } = await request.json();
     
     if (!ids || !Array.isArray(ids) || ids.length === 0) {

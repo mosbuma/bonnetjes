@@ -19,6 +19,8 @@ async function initializeState() {
 export async function POST() {
   try {
     await initializeState();
+    // Always reload from disk before scanning so we see changes made by other routes
+    await stateService.loadState();
     logger.debug('Starting scan process');
     
     await stateService.cleanupNonExistentFiles();
