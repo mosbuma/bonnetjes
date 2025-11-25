@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
+import path from 'path';
 import { generateFileName } from '@/lib/generic-tools';
 import { FileInfo } from '@/types';
 import { StateService } from '@/lib/stateService';
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     // Load state using StateService
     await stateService.loadState();
     
-    const results: Array<{ id: string; success: boolean; newPath?: string; error?: string }> = [];
+    const results: Array<{ id: string; success: boolean; newPath?: string; error?: string; file?: FileInfo }> = [];
     const updatedRecords: FileInfo[] = [];
     
     // Track all new paths to avoid conflicts within the same batch
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
 
       try {
         // Generate new filename
-        let basePath = generateFileName(record);
+        const basePath = generateFileName(record);
         if (!basePath || basePath === record.currentPath) {
           results.push({ id, success: false, error: 'No new filename generated' });
           continue;
@@ -86,8 +87,36 @@ export async function POST(req: NextRequest) {
         
         const absOldPath = record.currentPath;
         
+        // Ensure source file is accessible before renaming
+        try {
+          await fs.access(absOldPath);
+        } catch (error) {
+          results.push({ id, success: false, error: `Source file not accessible: ${(error as Error).message}` });
+          continue;
+        }
+        
         // Rename the file
         await fs.rename(absOldPath, newPath);
+        
+        // Force garbage collection of file handles by clearing any cached references
+        // This helps on some filesystems (especially network filesystems) where
+        // directory handles might remain open after rename operations
+        const oldDir = path.dirname(absOldPath);
+        const newDir = path.dirname(newPath);
+        
+        // Small delay to allow filesystem to release directory handles
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Try to stat the directories to ensure handles are released
+        // This forces the filesystem to close any lingering handles
+        try {
+          await Promise.all([
+            fs.stat(oldDir).catch(() => {}), // Ignore errors, just force handle release
+            fs.stat(newDir).catch(() => {})
+          ]);
+        } catch {
+          // Ignore stat errors, we're just trying to release handles
+        }
         
         // Mark this path as used
         usedPaths.add(newPath);

@@ -150,7 +150,7 @@ const Header: React.FC<HeaderProps> = ({
       try {
         onOperationStart?.('Clear State');
         await dispatch(clearState()).unwrap();
-        alert('State cleared successfully!');
+        // alert('State cleared successfully!');
       } catch (error) {
         alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
